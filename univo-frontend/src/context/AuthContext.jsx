@@ -3,16 +3,16 @@ import {
   useContext,
   useEffect,
   useState,
-} from "react";
+} from 'react';
 
-import axios from "axios";
+import axios from 'axios';
 
 // ======================================
-// AXIOS BASE URL
+// AXIOS CONFIG
 // ======================================
 
 axios.defaults.baseURL =
-  "http://localhost:5000/api";
+  'http://localhost:5000/api';
 
 // ======================================
 // CONTEXT
@@ -37,7 +37,7 @@ export const AuthProvider = ({
 }) => {
 
   // ====================================
-  // SAFE LOCAL STORAGE
+  // SAFE LOCAL STORAGE PARSE
   // ====================================
 
   const getStoredUser = () => {
@@ -46,13 +46,13 @@ export const AuthProvider = ({
 
       const storedUser =
         localStorage.getItem(
-          "user"
+          'user'
         );
 
       if (
         !storedUser ||
         storedUser ===
-        "undefined"
+        'undefined'
       ) {
 
         return null;
@@ -65,11 +65,11 @@ export const AuthProvider = ({
     } catch (error) {
 
       console.error(
-        "Invalid user in localStorage"
+        'Invalid user in localStorage'
       );
 
       localStorage.removeItem(
-        "user"
+        'user'
       );
 
       return null;
@@ -88,15 +88,94 @@ export const AuthProvider = ({
   const [token, setToken] =
     useState(
       localStorage.getItem(
-        "token"
+        'token'
       ) || null
     );
 
   const [loading, setLoading] =
-    useState(false);
+    useState(true);
 
   // ====================================
-  // AXIOS TOKEN
+  // INITIAL AUTH CHECK
+  // ====================================
+
+  useEffect(() => {
+
+    const initializeAuth =
+      async () => {
+
+        try {
+
+          const storedToken =
+            localStorage.getItem(
+              'token'
+            );
+
+          const storedUser =
+            getStoredUser();
+
+          if (
+            storedToken &&
+            storedUser
+          ) {
+
+            setToken(
+              storedToken
+            );
+
+            setUser(
+              storedUser
+            );
+
+            // SET AXIOS HEADER
+
+            axios.defaults.headers.common[
+              'Authorization'
+            ] =
+              `Bearer ${storedToken}`;
+
+          } else {
+
+            // CLEAN INVALID STORAGE
+
+            localStorage.removeItem(
+              'token'
+            );
+
+            localStorage.removeItem(
+              'user'
+            );
+
+            setToken(null);
+
+            setUser(null);
+          }
+
+        } catch (error) {
+
+          console.error(
+            'AUTH INIT ERROR:',
+            error
+          );
+
+          localStorage.clear();
+
+          setToken(null);
+
+          setUser(null);
+
+        } finally {
+
+          setLoading(false);
+        }
+      };
+
+    initializeAuth();
+
+  }, []);
+
+  // ====================================
+  // AUTO UPDATE AXIOS TOKEN
   // ====================================
 
   useEffect(() => {
@@ -104,14 +183,15 @@ export const AuthProvider = ({
     if (token) {
 
       axios.defaults.headers.common[
-        "Authorization"
-      ] = `Bearer ${token}`;
+        'Authorization'
+      ] =
+        `Bearer ${token}`;
 
     } else {
 
-      delete axios.defaults.headers
-        .common[
-        "Authorization"
+      delete axios.defaults
+        .headers.common[
+        'Authorization'
       ];
     }
 
@@ -121,171 +201,140 @@ export const AuthProvider = ({
   // REGISTER
   // ====================================
 
-  const register = async (
-    formData
-  ) => {
+  const register =
+    async (formData) => {
 
-    try {
+      try {
 
-      setLoading(true);
+        setLoading(true);
 
-      // FORCE STUDENT ROLE
-      // SECURITY
+        const response =
+          await axios.post(
+            '/auth/register',
+            formData
+          );
 
-      const payload = {
-        ...formData,
-        role: "student",
-      };
+        return {
+          success: true,
+          data:
+            response.data,
+        };
 
-      const response =
-        await axios.post(
-          "/auth/register",
-          payload
+      } catch (error) {
+
+        console.error(
+          'REGISTER ERROR:',
+          error
         );
 
-      const data =
-        response.data;
+        return {
+          success: false,
 
-      // ================================
-      // STORE TOKEN
-      // ================================
+          message:
+            error.response?.data
+              ?.message ||
+            'Registration failed',
+        };
 
-      localStorage.setItem(
-        "token",
-        data.token
-      );
+      } finally {
 
-      // ================================
-      // STORE USER
-      // ================================
-
-      localStorage.setItem(
-        "user",
-        JSON.stringify(
-          data.data
-        )
-      );
-
-      // ================================
-      // STATE
-      // ================================
-
-      setToken(
-        data.token
-      );
-
-      setUser(
-        data.data
-      );
-
-      return {
-        success: true,
-        user:
-          data.data,
-      };
-
-    } catch (error) {
-
-      console.error(
-        "REGISTER ERROR:",
-        error
-      );
-
-      return {
-        success: false,
-
-        message:
-          error.response?.data
-            ?.message ||
-          "Registration failed",
-      };
-
-    } finally {
-
-      setLoading(false);
-    }
-  };
+        setLoading(false);
+      }
+    };
 
   // ====================================
   // LOGIN
   // ====================================
 
-  const login = async (
-    formData
-  ) => {
+  const login =
+    async (formData) => {
 
-    try {
+      try {
 
-      setLoading(true);
+        setLoading(true);
 
-      const response =
-        await axios.post(
-          "/auth/login",
-          formData
+        const response =
+          await axios.post(
+            '/auth/login',
+            formData
+          );
+
+        const data =
+          response.data;
+
+        // CLEAR OLD SESSION FIRST
+
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+
+        // SAVE NEW SESSION
+
+        localStorage.setItem(
+          'token',
+          data.token
         );
 
-      const data =
-        response.data;
+        localStorage.setItem(
+          'user',
+          JSON.stringify(data.data)
+        );
 
-      // ================================
-      // STORE TOKEN
-      // ================================
+        // UPDATE STATE
 
-      localStorage.setItem(
-        "token",
-        data.token
-      );
+        setToken(data.token);
 
-      // ================================
-      // STORE USER
-      // ================================
+        setUser(data.data);
 
-      localStorage.setItem(
-        "user",
-        JSON.stringify(
+        // UPDATE AXIOS HEADER
+
+        axios.defaults.headers.common[
+          'Authorization'
+        ] = `Bearer ${data.token}`;
+
+        // UPDATE STATES
+
+        setToken(
+          data.token
+        );
+
+        setUser(
           data.data
-        )
-      );
+        );
 
-      // ================================
-      // STATE
-      // ================================
+        // SET AXIOS TOKEN
 
-      setToken(
-        data.token
-      );
+        axios.defaults.headers.common[
+          'Authorization'
+        ] =
+          `Bearer ${data.token}`;
 
-      setUser(
-        data.data
-      );
+        return {
+          success: true,
+          user:
+            data.data,
+        };
 
-      return {
-        success: true,
-        user:
-          data.data,
-      };
+      } catch (error) {
 
-    } catch (error) {
+        console.error(
+          'LOGIN ERROR:',
+          error
+        );
 
-      console.error(
-        "LOGIN ERROR:",
-        error
-      );
+        return {
+          success: false,
 
-      return {
-        success: false,
+          message:
+            error.response?.data
+              ?.message ||
+            'Login failed',
+        };
 
-        message:
-          error.response?.data
-            ?.message ||
-          "Login failed",
-      };
+      } finally {
 
-    } finally {
-
-      setLoading(false);
-    }
-  };
+        setLoading(false);
+      }
+    };
 
   // ====================================
   // LOGOUT
@@ -293,13 +342,24 @@ export const AuthProvider = ({
 
   const logout = () => {
 
+    // REMOVE STORAGE
+
     localStorage.removeItem(
-      "token"
+      'token'
     );
 
     localStorage.removeItem(
-      "user"
+      'user'
     );
+
+    // REMOVE AXIOS HEADER
+
+    delete axios.defaults
+      .headers.common[
+      'Authorization'
+    ];
+
+    // RESET STATE
 
     setUser(null);
 
@@ -312,23 +372,23 @@ export const AuthProvider = ({
 
   const isStudent =
     user?.role ===
-    "student";
+    'student';
 
   const isFaculty =
     user?.role ===
-    "faculty";
+    'faculty';
 
   const isHOD =
     user?.role ===
-    "hod";
+    'hod';
 
   const isCoordinator =
     user?.role ===
-    "coordinator";
+    'coordinator';
 
   const isAdmin =
     user?.role ===
-    "admin";
+    'admin';
 
   // ====================================
   // CONTEXT VALUE
@@ -361,6 +421,28 @@ export const AuthProvider = ({
   };
 
   // ====================================
+  // LOADING SCREEN
+  // ====================================
+
+  if (loading) {
+
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+
+        <div className="flex flex-col items-center gap-4">
+
+          <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+
+          <h1 className="text-xl font-semibold text-slate-700">
+            Loading Univo...
+          </h1>
+
+        </div>
+      </div>
+    );
+  }
+
+  // ====================================
   // RETURN
   // ====================================
 
@@ -372,3 +454,5 @@ export const AuthProvider = ({
     </AuthContext.Provider>
   );
 };
+
+export default AuthContext;

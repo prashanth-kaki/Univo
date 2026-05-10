@@ -1,24 +1,26 @@
 // controllers/authController.js
 
-const jwt = require("jsonwebtoken");
+const jwt = require('jsonwebtoken');
+const otpGenerator = require('otp-generator');
 
-const User = require("../models/User");
+const User = require('../models/User');
+
+const {
+    sendOTPEmail,
+} = require('../services/emailService');
 
 // ======================================
 // GENERATE JWT TOKEN
 // ======================================
 
-const generateToken = (
-    userId
-) => {
-
+const generateToken = (userId) => {
     return jwt.sign(
         { id: userId },
         process.env.JWT_SECRET,
         {
             expiresIn:
                 process.env.JWT_EXPIRE ||
-                "7d",
+                '7d',
         }
     );
 };
@@ -35,9 +37,7 @@ const sendTokenResponse = (
 ) => {
 
     const token =
-        generateToken(
-            user._id
-        );
+        generateToken(user._id);
 
     res.status(statusCode).json({
         success: true,
@@ -48,15 +48,417 @@ const sendTokenResponse = (
 };
 
 // ======================================
+// SEND REGISTER OTP
+// ======================================
+
+exports.sendRegisterOTP =
+    async (req, res) => {
+
+        try {
+
+            const { email } =
+                req.body;
+
+            if (!email) {
+
+                return res
+                    .status(400)
+                    .json({
+                        success: false,
+                        message:
+                            'Email is required',
+                    });
+            }
+
+            // CHECK EXISTING USER
+
+            const existingUser =
+                await User.findOne({
+                    email:
+                        email.toLowerCase(),
+                });
+
+            // REAL USER EXISTS
+
+            if (
+                existingUser &&
+                existingUser.name !==
+                'Temp User'
+            ) {
+
+                return res
+                    .status(400)
+                    .json({
+                        success: false,
+                        message:
+                            'User already exists',
+                    });
+            }
+
+            // GENERATE OTP
+
+            const otp =
+                otpGenerator.generate(
+                    6,
+                    {
+                        upperCaseAlphabets:
+                            false,
+
+                        lowerCaseAlphabets:
+                            false,
+
+                        specialChars:
+                            false,
+                    }
+                );
+
+            const otpExpiry =
+                Date.now() +
+                10 * 60 * 1000;
+
+            // UPDATE TEMP USER
+
+            if (existingUser) {
+
+                existingUser.otp =
+                    otp;
+
+                existingUser.otpExpiry =
+                    otpExpiry;
+
+                await existingUser.save();
+
+            } else {
+
+                // CREATE TEMP USER
+
+                await User.create({
+                    name:
+                        'Temp User',
+
+                    email:
+                        email.toLowerCase(),
+
+                    password:
+                        'temp123456',
+
+                    role:
+                        'student',
+
+                    branch:
+                        'CSE',
+
+                    otp,
+
+                    otpExpiry,
+
+                    isVerified:
+                        false,
+                });
+            }
+
+            // SEND EMAIL
+
+            await sendOTPEmail(
+                email,
+                otp,
+                'Registration'
+            );
+
+            return res
+                .status(200)
+                .json({
+                    success: true,
+                    message:
+                        'OTP sent successfully',
+                });
+
+        } catch (error) {
+
+            console.error(
+                'SEND OTP ERROR:',
+                error
+            );
+
+            return res
+                .status(500)
+                .json({
+                    success: false,
+                    message:
+                        'Failed to send OTP',
+                });
+        }
+    };
+
+// ======================================
+// VERIFY OTP
+// ======================================
+
+exports.verifyOTP = async (
+    req,
+    res
+) => {
+
+    try {
+
+        const {
+            email,
+            otp,
+        } = req.body;
+
+        const user =
+            await User.findOne({
+                email:
+                    email.toLowerCase(),
+            });
+
+        if (!user) {
+
+            return res
+                .status(404)
+                .json({
+                    success: false,
+                    message:
+                        'User not found',
+                });
+        }
+
+        if (
+            user.otp !== otp
+        ) {
+
+            return res
+                .status(400)
+                .json({
+                    success: false,
+                    message:
+                        'Invalid OTP',
+                });
+        }
+
+        if (
+            user.otpExpiry <
+            Date.now()
+        ) {
+
+            return res
+                .status(400)
+                .json({
+                    success: false,
+                    message:
+                        'OTP expired',
+                });
+        }
+
+        user.isVerified =
+            true;
+
+        await user.save();
+
+        res.status(200).json({
+            success: true,
+            message:
+                'OTP verified successfully',
+        });
+
+    } catch (error) {
+
+        console.error(
+            'VERIFY OTP ERROR:',
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            message:
+                error.message,
+        });
+    }
+};
+
+// ======================================
+// SEND FORGOT PASSWORD OTP
+// ======================================
+
+exports.sendForgotPasswordOTP =
+    async (req, res) => {
+
+        try {
+
+            const { email } =
+                req.body;
+
+            const user =
+                await User.findOne({
+                    email:
+                        email.toLowerCase(),
+                });
+
+            if (!user) {
+
+                return res
+                    .status(404)
+                    .json({
+                        success: false,
+                        message:
+                            'User not found',
+                    });
+            }
+
+            const otp =
+                otpGenerator.generate(
+                    6,
+                    {
+                        upperCaseAlphabets:
+                            false,
+
+                        lowerCaseAlphabets:
+                            false,
+
+                        specialChars:
+                            false,
+                    }
+                );
+
+            user.otp = otp;
+
+            user.otpExpiry =
+                Date.now() +
+                10 * 60 * 1000;
+
+            await user.save();
+
+            await sendOTPEmail(
+                email,
+                otp,
+                'Password Reset'
+            );
+
+            res.status(200).json({
+                success: true,
+                message:
+                    'OTP sent successfully',
+            });
+
+        } catch (error) {
+
+            console.error(
+                'FORGOT PASSWORD OTP ERROR:',
+                error
+            );
+
+            res.status(500).json({
+                success: false,
+                message:
+                    error.message,
+            });
+        }
+    };
+
+// ======================================
+// RESET PASSWORD
+// ======================================
+
+exports.resetPassword =
+    async (req, res) => {
+
+        try {
+
+            const {
+                email,
+                otp,
+                password,
+            } = req.body;
+
+            const user =
+                await User.findOne({
+                    email:
+                        email.toLowerCase(),
+                }).select(
+                    '+password'
+                );
+
+            if (!user) {
+
+                return res
+                    .status(404)
+                    .json({
+                        success: false,
+                        message:
+                            'User not found',
+                    });
+            }
+
+            // OTP CHECK
+
+            if (
+                user.otp !== otp
+            ) {
+
+                return res
+                    .status(400)
+                    .json({
+                        success: false,
+                        message:
+                            'Invalid OTP',
+                    });
+            }
+
+            // OTP EXPIRY
+
+            if (
+                user.otpExpiry <
+                Date.now()
+            ) {
+
+                return res
+                    .status(400)
+                    .json({
+                        success: false,
+                        message:
+                            'OTP expired',
+                    });
+            }
+
+            // UPDATE PASSWORD
+
+            user.password =
+                password;
+
+            user.otp = undefined;
+
+            user.otpExpiry =
+                undefined;
+
+            await user.save();
+
+            res.status(200).json({
+                success: true,
+                message:
+                    'Password reset successful',
+            });
+
+        } catch (error) {
+
+            console.error(
+                'RESET PASSWORD ERROR:',
+                error
+            );
+
+            res.status(500).json({
+                success: false,
+                message:
+                    'Failed to reset password',
+            });
+        }
+    };
+
+// ======================================
 // REGISTER USER
 // ======================================
 
 exports.registerUser =
-    async (
-        req,
-        res,
-        next
-    ) => {
+    async (req, res) => {
 
         try {
 
@@ -70,98 +472,21 @@ exports.registerUser =
                 semester,
                 rollNumber,
                 phoneNumber,
+                role,
             } = req.body;
-
-            // ==================================
-            // ROLE
-            // ==================================
-
-            const role =
-                req.body.role ||
-                "student";
-
-            // ==================================
-            // VALIDATION
-            // ==================================
-
-            if (
-                !name ||
-                !email ||
-                !password ||
-                !branch
-            ) {
-
-                return res
-                    .status(400)
-                    .json({
-                        success: false,
-                        message:
-                            "Name, email, password and branch are required",
-                    });
-            }
-
-            // ==================================
-            // STUDENT VALIDATION ONLY
-            // ==================================
-
-            if (
-                role ===
-                "student" &&
-                (
-                    !year ||
-                    !section ||
-                    !rollNumber
-                )
-            ) {
-
-                return res
-                    .status(400)
-                    .json({
-                        success: false,
-                        message:
-                            "Year, section and roll number are required",
-                    });
-            }
-
-            // ==================================
-            // VALID ROLES
-            // ==================================
-
-            const allowedRoles =
-                [
-                    "student",
-                    "faculty",
-                    "hod",
-                    "coordinator",
-                    "admin",
-                ];
-
-            if (
-                !allowedRoles.includes(
-                    role
-                )
-            ) {
-
-                return res
-                    .status(400)
-                    .json({
-                        success: false,
-                        message:
-                            "Invalid role",
-                    });
-            }
-
-            // ==================================
-            // EXISTING USER CHECK
-            // ==================================
 
             const existingUser =
                 await User.findOne({
-                    email,
+                    email:
+                        email.toLowerCase(),
                 });
 
+            // REAL USER EXISTS
+
             if (
-                existingUser
+                existingUser &&
+                existingUser.name !==
+                'Temp User'
             ) {
 
                 return res
@@ -169,49 +494,97 @@ exports.registerUser =
                     .json({
                         success: false,
                         message:
-                            "User already exists",
+                            'User already exists',
                     });
             }
 
-            // ==================================
-            // CREATE USER
-            // ==================================
+            let user;
 
-            const user =
-                await User.create({
-                    name,
-                    email,
-                    password,
-                    role,
-                    branch,
-                    year,
-                    section,
-                    semester,
-                    rollNumber,
-                    phoneNumber,
-                });
+            // UPDATE TEMP USER
 
-            sendTokenResponse(
-                user,
-                201,
-                res,
+            if (existingUser) {
 
-                role === "student"
-                    ? "Student registered successfully"
-                    : `${role} account created successfully`
-            );
+                existingUser.name =
+                    name;
+
+                existingUser.password =
+                    password;
+
+                existingUser.branch =
+                    branch;
+
+                existingUser.year =
+                    year;
+
+                existingUser.section =
+                    section;
+
+                existingUser.semester =
+                    semester;
+
+                existingUser.rollNumber =
+                    rollNumber;
+
+                existingUser.phoneNumber =
+                    phoneNumber;
+
+                existingUser.role =
+                    role ||
+                    'student';
+
+                user =
+                    await existingUser.save();
+
+            } else {
+
+                // CREATE NEW USER
+
+                user =
+                    await User.create({
+                        name,
+
+                        email:
+                            email.toLowerCase(),
+
+                        password,
+
+                        branch,
+
+                        year,
+
+                        section,
+
+                        semester,
+
+                        rollNumber,
+
+                        phoneNumber,
+
+                        role:
+                            role ||
+                            'student',
+                    });
+            }
+
+            // NO AUTO LOGIN
+
+            res.status(201).json({
+                success: true,
+                message:
+                    'User registered successfully',
+            });
 
         } catch (error) {
 
             console.error(
-                "REGISTER ERROR:",
+                'REGISTER ERROR:',
                 error
             );
 
             res.status(500).json({
                 success: false,
                 message:
-                    "Server error during registration",
+                    'Server error during registration',
                 error:
                     error.message,
             });
@@ -222,145 +595,120 @@ exports.registerUser =
 // LOGIN USER
 // ======================================
 
-exports.loginUser =
-    async (
-        req,
-        res,
-        next
-    ) => {
+exports.loginUser = async (
+    req,
+    res
+) => {
 
-        try {
+    try {
 
-            const {
-                email,
-                password,
-            } = req.body;
+        const {
+            email,
+            password,
+        } = req.body;
 
-            // ==================================
-            // VALIDATION
-            // ==================================
+        if (
+            !email ||
+            !password
+        ) {
 
-            if (
-                !email ||
-                !password
-            ) {
-
-                return res
-                    .status(400)
-                    .json({
-                        success: false,
-                        message:
-                            "Email and password are required",
-                    });
-            }
-
-            // ==================================
-            // FIND USER
-            // ==================================
-
-            const user =
-                await User.findOne({
-                    email,
-                }).select(
-                    "+password"
-                );
-
-            if (!user) {
-
-                return res
-                    .status(401)
-                    .json({
-                        success: false,
-                        message:
-                            "Invalid credentials",
-                    });
-            }
-
-            // ==================================
-            // ACTIVE CHECK
-            // ==================================
-
-            if (
-                !user.isActive
-            ) {
-
-                return res
-                    .status(403)
-                    .json({
-                        success: false,
-                        message:
-                            "Your account has been deactivated",
-                    });
-            }
-
-            // ==================================
-            // PASSWORD CHECK
-            // ==================================
-
-            const isPasswordMatched =
-                await user.comparePassword(
-                    password
-                );
-
-            if (
-                !isPasswordMatched
-            ) {
-
-                return res
-                    .status(401)
-                    .json({
-                        success: false,
-                        message:
-                            "Invalid credentials",
-                    });
-            }
-
-            // ==================================
-            // LAST LOGIN
-            // ==================================
-
-            user.lastLogin =
-                new Date();
-
-            await user.save({
-                validateBeforeSave:
-                    false,
-            });
-
-            sendTokenResponse(
-                user,
-                200,
-                res,
-                "Login successful"
-            );
-
-        } catch (error) {
-
-            console.error(
-                "LOGIN ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                success: false,
-                message:
-                    "Server error during login",
-                error:
-                    error.message,
-            });
+            return res
+                .status(400)
+                .json({
+                    success: false,
+                    message:
+                        'Email and password are required',
+                });
         }
-    };
+
+        const user =
+            await User.findOne({
+                email:
+                    email.toLowerCase(),
+            }).select(
+                '+password'
+            );
+
+        if (!user) {
+
+            return res
+                .status(401)
+                .json({
+                    success: false,
+                    message:
+                        'Invalid credentials',
+                });
+        }
+
+        if (
+            !user.isActive
+        ) {
+
+            return res
+                .status(403)
+                .json({
+                    success: false,
+                    message:
+                        'Your account has been deactivated',
+                });
+        }
+
+        const isPasswordMatched =
+            await user.comparePassword(
+                password
+            );
+
+        if (
+            !isPasswordMatched
+        ) {
+
+            return res
+                .status(401)
+                .json({
+                    success: false,
+                    message:
+                        'Invalid credentials',
+                });
+        }
+
+        user.lastLogin =
+            new Date();
+
+        await user.save({
+            validateBeforeSave:
+                false,
+        });
+
+        sendTokenResponse(
+            user,
+            200,
+            res,
+            'Login successful'
+        );
+
+    } catch (error) {
+
+        console.error(
+            'LOGIN ERROR:',
+            error
+        );
+
+        res.status(500).json({
+            success: false,
+            message:
+                'Server error during login',
+            error:
+                error.message,
+        });
+    }
+};
 
 // ======================================
 // GET CURRENT USER
 // ======================================
 
 exports.getCurrentUser =
-    async (
-        req,
-        res,
-        next
-    ) => {
+    async (req, res) => {
 
         try {
 
@@ -368,7 +716,7 @@ exports.getCurrentUser =
                 await User.findById(
                     req.user.id
                 ).populate(
-                    "subjects"
+                    'subjects'
                 );
 
             if (!user) {
@@ -378,29 +726,25 @@ exports.getCurrentUser =
                     .json({
                         success: false,
                         message:
-                            "User not found",
+                            'User not found',
                     });
             }
 
             res.status(200).json({
                 success: true,
-                message:
-                    "Current user fetched",
                 data: user,
             });
 
         } catch (error) {
 
             console.error(
-                "GET CURRENT USER ERROR:",
+                'GET CURRENT USER ERROR:',
                 error
             );
 
             res.status(500).json({
                 success: false,
                 message:
-                    "Server error while fetching user",
-                error:
                     error.message,
             });
         }
@@ -411,35 +755,13 @@ exports.getCurrentUser =
 // ======================================
 
 exports.logoutUser =
-    async (
-        req,
-        res,
-        next
-    ) => {
+    async (req, res) => {
 
-        try {
-
-            res.status(200).json({
-                success: true,
-                message:
-                    "Logged out successfully",
-            });
-
-        } catch (error) {
-
-            console.error(
-                "LOGOUT ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                success: false,
-                message:
-                    "Server error during logout",
-                error:
-                    error.message,
-            });
-        }
+        res.status(200).json({
+            success: true,
+            message:
+                'Logged out successfully',
+        });
     };
 
 // ======================================
@@ -447,22 +769,18 @@ exports.logoutUser =
 // ======================================
 
 exports.updateProfile =
-    async (
-        req,
-        res,
-        next
-    ) => {
+    async (req, res) => {
 
         try {
 
             const allowedFields =
                 [
-                    "name",
-                    "phoneNumber",
-                    "bio",
-                    "profileImage",
-                    "section",
-                    "semester",
+                    'name',
+                    'phoneNumber',
+                    'bio',
+                    'profileImage',
+                    'section',
+                    'semester',
                 ];
 
             const updateData =
@@ -474,7 +792,8 @@ exports.updateProfile =
                     if (
                         req.body[
                         field
-                        ] !== undefined
+                        ] !==
+                        undefined
                     ) {
 
                         updateData[
@@ -493,29 +812,28 @@ exports.updateProfile =
                     updateData,
                     {
                         new: true,
-                        runValidators: true,
+                        runValidators:
+                            true,
                     }
                 );
 
             res.status(200).json({
                 success: true,
                 message:
-                    "Profile updated successfully",
+                    'Profile updated successfully',
                 data: updatedUser,
             });
 
         } catch (error) {
 
             console.error(
-                "UPDATE PROFILE ERROR:",
+                'UPDATE PROFILE ERROR:',
                 error
             );
 
             res.status(500).json({
                 success: false,
                 message:
-                    "Server error while updating profile",
-                error:
                     error.message,
             });
         }
@@ -526,11 +844,7 @@ exports.updateProfile =
 // ======================================
 
 exports.changePassword =
-    async (
-        req,
-        res,
-        next
-    ) => {
+    async (req, res) => {
 
         try {
 
@@ -539,25 +853,11 @@ exports.changePassword =
                 newPassword,
             } = req.body;
 
-            if (
-                !currentPassword ||
-                !newPassword
-            ) {
-
-                return res
-                    .status(400)
-                    .json({
-                        success: false,
-                        message:
-                            "Current password and new password are required",
-                    });
-            }
-
             const user =
                 await User.findById(
                     req.user.id
                 ).select(
-                    "+password"
+                    '+password'
                 );
 
             const isMatched =
@@ -572,7 +872,7 @@ exports.changePassword =
                     .json({
                         success: false,
                         message:
-                            "Current password is incorrect",
+                            'Current password is incorrect',
                     });
             }
 
@@ -585,21 +885,19 @@ exports.changePassword =
                 user,
                 200,
                 res,
-                "Password changed successfully"
+                'Password changed successfully'
             );
 
         } catch (error) {
 
             console.error(
-                "CHANGE PASSWORD ERROR:",
+                'CHANGE PASSWORD ERROR:',
                 error
             );
 
             res.status(500).json({
                 success: false,
                 message:
-                    "Server error while changing password",
-                error:
                     error.message,
             });
         }

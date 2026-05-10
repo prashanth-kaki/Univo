@@ -1,23 +1,24 @@
-import { useState } from "react";
+import { useState } from 'react';
 
 import {
-  FaEnvelope,
-  FaLock,
-  FaUser,
-} from "react-icons/fa";
+  useNavigate,
+} from 'react-router-dom';
 
-import { useNavigate } from "react-router-dom";
+import axios from 'axios';
 
-import { useAuth } from "../../context/AuthContext";
+import toast from 'react-hot-toast';
+
+import { useAuth } from '../../context/AuthContext';
+
+const API =
+  'http://localhost:5000/api/auth';
 
 const Login = () => {
+  const navigate =
+    useNavigate();
 
-  const navigate = useNavigate();
-
-  const {
-    login,
-    register,
-  } = useAuth();
+  const { login } =
+    useAuth();
 
   const [isLogin, setIsLogin] =
     useState(true);
@@ -26,137 +27,673 @@ const Login = () => {
     useState(false);
 
   const [error, setError] =
-    useState("");
+    useState('');
+
+  // =====================================
+  // FORGOT PASSWORD
+  // =====================================
+
+  const [
+    isForgotPassword,
+    setIsForgotPassword,
+  ] = useState(false);
+
+  const [otpSent, setOtpSent] =
+    useState(false);
+
+  const [otp, setOtp] =
+    useState('');
+
+  const [
+    otpVerified,
+    setOtpVerified,
+  ] = useState(false);
+
+  const [
+    newPassword,
+    setNewPassword,
+  ] = useState('');
+
+  const [
+    confirmNewPassword,
+    setConfirmNewPassword,
+  ] = useState('');
+
+  // =====================================
+  // REGISTER OTP
+  // =====================================
+
+  const [
+    registerOtpSent,
+    setRegisterOtpSent,
+  ] = useState(false);
+
+  const [
+    registerOtp,
+    setRegisterOtp,
+  ] = useState('');
+
+  // =====================================
+  // FORM DATA
+  // =====================================
 
   const [formData, setFormData] =
     useState({
-      name: "",
-      email: "",
-      password: "",
-
-      // STUDENT ONLY
-      role: "student",
-
-      rollNumber: "",
-      year: "1",
-      semester: "1",
-      branch: "CSE",
-      section: "A",
-      department: "",
+      name: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      role: 'student',
+      rollNumber: '',
+      year: '1',
+      semester: '1',
+      branch: 'CSE',
+      section: 'A',
+      department: '',
     });
 
-  // ======================================
-  // HANDLE CHANGE
-  // ======================================
+  // =====================================
+  // HANDLE INPUT
+  // =====================================
 
   const handleChange = (e) => {
-
     setFormData({
       ...formData,
+
       [e.target.name]:
         e.target.value,
     });
   };
 
-  // ======================================
-  // SUBMIT
-  // ======================================
+  // =====================================
+  // EMAIL VALIDATION
+  // =====================================
 
-  const handleSubmit = async (
-    e
+  const validateEmail = (
+    email
   ) => {
+    const regex =
+      /^[a-zA-Z0-9._%+-]+@(gmail\.com|acoe\.edu\.in|acet\.edu\.in|aec\.edu\.in|univo\.com)$/;
 
-    e.preventDefault();
+    return regex.test(email);
+  };
 
-    setLoading(true);
+  // =====================================
+  // FORGOT PASSWORD
+  // =====================================
 
-    setError("");
+  const handleForgotPassword =
+    async (e) => {
 
-    try {
+      e.preventDefault();
 
-      let response;
+      setError('');
 
-      if (isLogin) {
+      try {
 
-        response =
+        setLoading(true);
+
+        // =====================================
+        // SEND OTP
+        // =====================================
+
+        if (!otpSent) {
+
+          const response =
+            await axios.post(
+              `${API}/forgot-password-otp`,
+              {
+                email:
+                  formData.email,
+              }
+            );
+
+          if (
+            response.data.success
+          ) {
+
+            setOtpSent(true);
+
+            toast.success(
+              'OTP sent successfully'
+            );
+          }
+
+          return;
+        }
+
+        // =====================================
+        // RESET PASSWORD
+        // =====================================
+
+        if (otpVerified) {
+
+          if (
+            newPassword !==
+            confirmNewPassword
+          ) {
+
+            toast.error(
+              'Passwords do not match'
+            );
+
+            return;
+          }
+
+          const response =
+            await axios.post(
+              `${API}/reset-password`,
+              {
+                email:
+                  formData.email,
+
+                otp,
+
+                password:
+                  newPassword,
+              }
+            );
+
+          if (
+            response.data.success
+          ) {
+
+            toast.success(
+              'Password reset successful'
+            );
+
+            // RESET STATES
+
+            setOtp('');
+
+            setOtpSent(false);
+
+            setOtpVerified(false);
+
+            setNewPassword('');
+
+            setConfirmNewPassword('');
+
+            setIsForgotPassword(
+              false
+            );
+
+            setIsLogin(true);
+          }
+
+          return;
+        }
+
+        // =====================================
+        // VERIFY OTP
+        // =====================================
+
+        const verifyResponse =
+          await axios.post(
+            `${API}/verify-otp`,
+            {
+              email:
+                formData.email,
+
+              otp,
+            }
+          );
+
+        if (
+          verifyResponse.data
+            .success
+        ) {
+
+          setOtpVerified(true);
+
+          toast.success(
+            'OTP verified successfully'
+          );
+        }
+
+      } catch (error) {
+
+        console.error(error);
+
+        toast.error(
+          error?.response?.data
+            ?.message ||
+          'Something went wrong'
+        );
+
+      } finally {
+
+        setLoading(false);
+      }
+    };
+
+  // =====================================
+  // SUBMIT
+  // =====================================
+
+  const handleSubmit =
+    async (e) => {
+
+      e.preventDefault();
+
+      setError('');
+
+      if (
+        !validateEmail(
+          formData.email
+        )
+      ) {
+
+        toast.error(
+          'Please enter valid email'
+        );
+
+        return;
+      }
+
+      try {
+
+        setLoading(true);
+
+        // =====================================
+        // REGISTER FLOW
+        // =====================================
+
+        if (!isLogin) {
+
+          // PASSWORD CHECK
+
+          if (
+            formData.password !==
+            formData.confirmPassword
+          ) {
+
+            toast.error(
+              'Passwords do not match'
+            );
+
+            return;
+          }
+
+          // SEND OTP
+
+          if (
+            !registerOtpSent
+          ) {
+
+            const otpResponse =
+              await axios.post(
+                `${API}/send-register-otp`,
+                {
+                  email:
+                    formData.email,
+                }
+              );
+
+            if (
+              otpResponse.data
+                .success
+            ) {
+
+              setRegisterOtpSent(
+                true
+              );
+
+              toast.success(
+                'OTP sent successfully'
+              );
+            }
+
+            return;
+          }
+
+          // VERIFY OTP
+
+          const verifyResponse =
+            await axios.post(
+              `${API}/verify-otp`,
+              {
+                email:
+                  formData.email,
+
+                otp: registerOtp,
+              }
+            );
+
+          if (
+            !verifyResponse.data
+              .success
+          ) {
+
+            toast.error(
+              'Invalid OTP'
+            );
+
+            return;
+          }
+
+          // REGISTER USER
+
+          const response =
+            await axios.post(
+              `${API}/register`,
+              {
+                name:
+                  formData.name,
+
+                email:
+                  formData.email,
+
+                password:
+                  formData.password,
+
+                role:
+                  formData.role,
+
+                rollNumber:
+                  formData.rollNumber,
+
+                year:
+                  formData.year,
+
+                semester:
+                  formData.semester,
+
+                branch:
+                  formData.branch,
+
+                section:
+                  formData.section,
+
+                department:
+                  formData.department,
+              }
+            );
+
+          if (
+            response.data.success
+          ) {
+
+            toast.success(
+              'Registration successful. Please login.'
+            );
+
+            // RESET FORM
+
+            setFormData({
+              name: '',
+              email: '',
+              password: '',
+              confirmPassword:
+                '',
+              role: 'student',
+              rollNumber: '',
+              year: '1',
+              semester: '1',
+              branch: 'CSE',
+              section: 'A',
+              department: '',
+            });
+
+            setRegisterOtp(
+              ''
+            );
+
+            setRegisterOtpSent(
+              false
+            );
+
+            // SWITCH TO LOGIN
+
+            setIsLogin(true);
+          }
+
+          return;
+        }
+
+        // =====================================
+        // LOGIN FLOW
+        // =====================================
+
+        const response =
           await login({
             email:
               formData.email,
+
             password:
               formData.password,
           });
 
-      } else {
+        if (
+          response.success
+        ) {
 
-        response =
-          await register(
-            formData
+          toast.success(
+            'Login successful'
           );
-      }
 
-      if (
-        response.success
-      ) {
+          const role =
+            response.user
+              ?.role ||
+            'student';
 
-        const role =
-          response.user.role;
+          // ROLE ROUTING
 
-        // ==================================
-        // ROLE BASED REDIRECT
-        // ==================================
+          if (
+            role ===
+            'admin'
+          ) {
 
-        if (role === "admin") {
-          navigate("/admin/dashboard");
-        } else if (role === "faculty") {
-          navigate("/faculty/dashboard");
-        } else if (role === "hod") {
-          navigate("/hod/dashboard");
-        } else if (role === "coordinator") {
-          navigate("/coordinator/dashboard");
-        } else {
-          navigate("/student/dashboard");
+            navigate(
+              '/admin/dashboard'
+            );
+
+          } else if (
+            role ===
+            'faculty'
+          ) {
+
+            navigate(
+              '/faculty/dashboard'
+            );
+
+          } else if (
+            role ===
+            'hod'
+          ) {
+
+            navigate(
+              '/hod/dashboard'
+            );
+
+          } else if (
+            role ===
+            'coordinator'
+          ) {
+
+            navigate(
+              '/coordinator/dashboard'
+            );
+
+          } else {
+
+            navigate(
+              '/student/dashboard'
+            );
+          }
         }
 
-      } else {
+      } catch (error) {
 
-        setError(
-          response.message
+        console.error(error);
+
+        toast.error(
+          error?.response?.data
+            ?.message ||
+          'Something went wrong'
         );
+
+      } finally {
+
+        setLoading(false);
       }
+    };
 
-    } catch (err) {
+  // =====================================
+  // FORGOT PASSWORD SCREEN
+  // =====================================
 
-      console.error(err);
+  if (isForgotPassword) {
 
-      setError(
-        "Something went wrong"
-      );
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-purple-100 p-4">
 
-    } finally {
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8">
 
-      setLoading(false);
-    }
-  };
+          <h1 className="text-3xl font-bold text-center mb-6">
+            Reset Password
+          </h1>
+
+          <form
+            onSubmit={
+              handleForgotPassword
+            }
+            className="space-y-5"
+          >
+
+            <input
+              type="email"
+              name="email"
+              placeholder="Email"
+              value={
+                formData.email
+              }
+              onChange={
+                handleChange
+              }
+              className="w-full px-4 py-3 rounded-xl border"
+            />
+
+            {/* OTP */}
+
+            {otpSent && (
+              <input
+                type="text"
+                placeholder="Enter OTP"
+                value={otp}
+                onChange={(e) =>
+                  setOtp(
+                    e.target.value
+                  )
+                }
+                className="w-full px-4 py-3 rounded-xl border"
+              />
+            )}
+
+            {/* NEW PASSWORD */}
+
+            {otpVerified && (
+              <>
+                <input
+                  type="password"
+                  placeholder="New Password"
+                  value={
+                    newPassword
+                  }
+                  onChange={(e) =>
+                    setNewPassword(
+                      e.target.value
+                    )
+                  }
+                  className="w-full px-4 py-3 rounded-xl border"
+                />
+
+                <input
+                  type="password"
+                  placeholder="Confirm New Password"
+                  value={
+                    confirmNewPassword
+                  }
+                  onChange={(e) =>
+                    setConfirmNewPassword(
+                      e.target.value
+                    )
+                  }
+                  className="w-full px-4 py-3 rounded-xl border"
+                />
+              </>
+            )}
+
+            {/* BUTTON */}
+
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-indigo-600 text-white py-3 rounded-xl"
+            >
+              {loading
+                ? 'Please wait...'
+                : otpVerified
+                  ? 'Reset Password'
+                  : otpSent
+                    ? 'Verify OTP'
+                    : 'Send OTP'}
+            </button>
+
+            {/* BACK */}
+
+            <button
+              type="button"
+              onClick={() => {
+
+                setIsForgotPassword(
+                  false
+                );
+
+                setOtp('');
+
+                setOtpSent(false);
+
+                setOtpVerified(
+                  false
+                );
+
+                setNewPassword(
+                  ''
+                );
+
+                setConfirmNewPassword(
+                  ''
+                );
+              }}
+              className="w-full text-indigo-600"
+            >
+              Back to Login
+            </button>
+
+          </form>
+        </div>
+      </div>
+    );
+  }
+
+  // =====================================
+  // MAIN AUTH SCREEN
+  // =====================================
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-100 to-purple-100 p-4">
 
       <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8">
 
-        {/* HEADER */}
-
         <div className="text-center mb-8">
 
-          <h1 className="text-4xl font-bold text-slate-900 mb-2">
-
+          <h1 className="text-4xl font-bold">
             Welcome to Univo
-
           </h1>
 
-          <p className="text-slate-600">
-
-            Centralized Academic Communication Platform
-
+          <p className="text-slate-600 mt-2">
+            Academic Platform
           </p>
 
         </div>
@@ -166,424 +703,199 @@ const Login = () => {
         <div className="flex bg-slate-100 rounded-2xl p-1 mb-8">
 
           <button
-            onClick={() =>
-              setIsLogin(true)
-            }
+            type="button"
+            onClick={() => {
 
-            className={`flex-1 py-3 rounded-xl font-semibold transition-all ${isLogin
-              ? "bg-white shadow text-indigo-600"
-              : "text-slate-500"
+              setIsLogin(true);
+
+              setRegisterOtpSent(
+                false
+              );
+            }}
+            className={`flex-1 py-3 rounded-xl font-semibold ${isLogin
+              ? 'bg-white shadow text-indigo-600'
+              : 'text-slate-500'
               }`}
           >
-
             Sign In
-
           </button>
 
           <button
-            onClick={() =>
-              setIsLogin(false)
-            }
+            type="button"
+            onClick={() => {
 
-            className={`flex-1 py-3 rounded-xl font-semibold transition-all ${!isLogin
-              ? "bg-white shadow text-indigo-600"
-              : "text-slate-500"
+              setIsLogin(false);
+
+              setRegisterOtpSent(
+                false
+              );
+            }}
+            className={`flex-1 py-3 rounded-xl font-semibold ${!isLogin
+              ? 'bg-white shadow text-indigo-600'
+              : 'text-slate-500'
               }`}
           >
-
             Register
-
           </button>
 
         </div>
 
-        {/* ERROR */}
-
-        {error && (
-
-          <div className="mb-4 p-3 rounded-xl bg-red-100 text-red-600 text-sm">
-
-            {error}
-
-          </div>
-        )}
-
         {/* FORM */}
 
         <form
-          onSubmit={
-            handleSubmit
-          }
-
+          onSubmit={handleSubmit}
           className="space-y-5"
         >
 
-          {/* REGISTER ONLY */}
+          {/* REGISTER */}
 
           {!isLogin && (
             <>
-
-              {/* FULL NAME */}
-
-              <div>
-
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-
-                  Full Name
-
-                </label>
-
-                <div className="relative">
-
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-
-                    <FaUser className="text-slate-400" />
-
-                  </div>
-
-                  <input
-                    type="text"
-                    name="name"
-                    required
-
-                    placeholder="Enter your Full Name"
-
-                    value={
-                      formData.name
-                    }
-
-                    onChange={
-                      handleChange
-                    }
-
-                    className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50"
-                  />
-
-                </div>
-
-              </div>
-
-              {/* ROLL NUMBER */}
-
-              <div>
-
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-
-                  Roll Number
-
-                </label>
-
-                <div className="relative">
-
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-
-                    <FaUser className="text-slate-400" />
-
-                  </div>
-
-                  <input
-                    type="text"
-                    name="rollNumber"
-                    required
-
-                    placeholder="Enter your Roll number"
-
-                    value={
-                      formData.rollNumber
-                    }
-
-                    onChange={
-                      handleChange
-                    }
-
-                    className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50"
-                  />
-
-                </div>
-
-              </div>
-
-              {/* BRANCH */}
-
-              <div>
-
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-
-                  Branch
-
-                </label>
-
-                <select
-                  name="branch"
-
-                  value={
-                    formData.branch
-                  }
-
-                  onChange={
-                    handleChange
-                  }
-
-                  className="block w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50"
-                >
-
-                  <option value="CSE">
-                    CSE
-                  </option>
-
-                  <option value="ECE">
-                    ECE
-                  </option>
-
-                  <option value="EEE">
-                    EEE
-                  </option>
-
-                  <option value="MECH">
-                    MECH
-                  </option>
-
-                  <option value="CIVIL">
-                    CIVIL
-                  </option>
-
-                  <option value="IT">
-                    IT
-                  </option>
-
-                </select>
-
-              </div>
-
-              {/* YEAR */}
-
-              <div>
-
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-
-                  Year
-
-                </label>
-
-                <select
-                  name="year"
-
-                  value={
-                    formData.year
-                  }
-
-                  onChange={
-                    handleChange
-                  }
-
-                  className="block w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50"
-                >
-
-                  <option value="1">
-                    1st Year
-                  </option>
-
-                  <option value="2">
-                    2nd Year
-                  </option>
-
-                  <option value="3">
-                    3rd Year
-                  </option>
-
-                  <option value="4">
-                    4th Year
-                  </option>
-
-                </select>
-
-              </div>
-
-              {/* SEMESTER */}
-
-              <div>
-
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-
-                  Semester
-
-                </label>
-
-                <select
-                  name="semester"
-
-                  value={
-                    formData.semester
-                  }
-
-                  onChange={
-                    handleChange
-                  }
-
-                  className="block w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50"
-                >
-
-                  <option value="1">
-                    Semester 1
-                  </option>
-
-                  <option value="2">
-                    Semester 2
-                  </option>
-
-                </select>
-
-              </div>
-
-              {/* SECTION */}
-
-              <div>
-
-                <label className="block text-sm font-medium text-slate-700 mb-1">
-
-                  Section
-
-                </label>
-
-                <select
-                  name="section"
-
-                  value={
-                    formData.section
-                  }
-
-                  onChange={
-                    handleChange
-                  }
-
-                  className="block w-full px-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50"
-                >
-
-                  <option value="A">
-                    A
-                  </option>
-
-                  <option value="B">
-                    B
-                  </option>
-
-                  <option value="C">
-                    C
-                  </option>
-
-                  <option value="D">
-                    D
-                  </option>
-
-                </select>
-
-              </div>
-
+              <input
+                type="text"
+                name="name"
+                placeholder="Full Name"
+                value={
+                  formData.name
+                }
+                onChange={
+                  handleChange
+                }
+                disabled={
+                  registerOtpSent
+                }
+                className="w-full px-4 py-3 rounded-xl border"
+              />
+
+              <input
+                type="text"
+                name="rollNumber"
+                placeholder="Roll Number"
+                value={
+                  formData.rollNumber
+                }
+                onChange={
+                  handleChange
+                }
+                disabled={
+                  registerOtpSent
+                }
+                className="w-full px-4 py-3 rounded-xl border"
+              />
             </>
           )}
 
           {/* EMAIL */}
 
-          <div>
-
-            <label className="block text-sm font-medium text-slate-700 mb-1">
-
-              Email Address
-
-            </label>
-
-            <div className="relative">
-
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-
-                <FaEnvelope className="text-slate-400" />
-
-              </div>
-
-              <input
-                type="email"
-                name="email"
-                required
-
-                placeholder="you@example.com"
-
-                value={
-                  formData.email
-                }
-
-                onChange={
-                  handleChange
-                }
-
-                className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50"
-              />
-
-            </div>
-
-          </div>
+          <input
+            type="email"
+            name="email"
+            placeholder="Email"
+            value={formData.email}
+            onChange={handleChange}
+            disabled={
+              registerOtpSent
+            }
+            className="w-full px-4 py-3 rounded-xl border"
+          />
 
           {/* PASSWORD */}
 
-          <div>
+          <input
+            type="password"
+            name="password"
+            placeholder="Password"
+            value={
+              formData.password
+            }
+            onChange={
+              handleChange
+            }
+            disabled={
+              registerOtpSent
+            }
+            className="w-full px-4 py-3 rounded-xl border"
+          />
 
-            <label className="block text-sm font-medium text-slate-700 mb-1">
+          {/* CONFIRM PASSWORD */}
 
-              Password
+          {!isLogin && (
+            <input
+              type="password"
+              name="confirmPassword"
+              placeholder="Confirm Password"
+              value={
+                formData.confirmPassword
+              }
+              onChange={
+                handleChange
+              }
+              disabled={
+                registerOtpSent
+              }
+              className="w-full px-4 py-3 rounded-xl border"
+            />
+          )}
 
-            </label>
+          {/* OTP */}
 
-            <div className="relative">
-
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-
-                <FaLock className="text-slate-400" />
-
-              </div>
-
+          {!isLogin &&
+            registerOtpSent && (
               <input
-                type="password"
-                name="password"
-                required
-
-                placeholder="••••••••"
-
+                type="text"
+                placeholder="Enter OTP"
                 value={
-                  formData.password
+                  registerOtp
                 }
-
-                onChange={
-                  handleChange
+                onChange={(e) =>
+                  setRegisterOtp(
+                    e.target.value
+                  )
                 }
-
-                className="block w-full pl-10 pr-3 py-2.5 border border-slate-200 rounded-xl bg-slate-50"
+                maxLength={6}
+                className="w-full px-4 py-3 rounded-xl border text-center tracking-widest"
               />
-
-            </div>
-
-          </div>
+            )}
 
           {/* BUTTON */}
 
           <button
             type="submit"
-
             disabled={loading}
-
-            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-xl font-semibold hover:opacity-90 transition-all disabled:opacity-50"
+            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 text-white py-3 rounded-xl"
           >
-
             {loading
-              ? "Please wait..."
+              ? 'Please wait...'
               : isLogin
-                ? "Sign In"
-                : "Create Account"}
-
+                ? 'Sign In'
+                : registerOtpSent
+                  ? 'Verify OTP & Register'
+                  : 'Send Registration OTP'}
           </button>
+
+          {/* FORGOT PASSWORD */}
+
+          {isLogin && (
+            <div className="text-center">
+
+              <button
+                type="button"
+                onClick={() =>
+                  setIsForgotPassword(
+                    true
+                  )
+                }
+                className="text-indigo-600 text-sm"
+              >
+                Forgot Password?
+              </button>
+
+            </div>
+          )}
 
         </form>
 
       </div>
-
     </div>
   );
 };

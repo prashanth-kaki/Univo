@@ -1,4 +1,4 @@
-const express = require("express");
+const express = require('express');
 
 const {
   registerUser,
@@ -7,78 +7,156 @@ const {
   logoutUser,
   updateProfile,
   changePassword,
-} = require("../controllers/authController");
+  sendRegisterOTP,
+  verifyOTP,
+  sendForgotPasswordOTP,
+  resetPassword,
+} = require('../controllers/authController');
 
 const {
   protect,
-} = require("../middleware/auth");
+} = require('../middleware/auth');
 
 const {
   authorizeRoles,
-} = require("../middleware/roleMiddleware");
+} = require('../middleware/roleMiddleware');
 
 const router = express.Router();
 
-// Register
-router.post("/register", registerUser);
+// ======================================
+// AUTH ROUTES
+// ======================================
 
-// Login
-router.post("/login", loginUser);
+// Register User
+router.post(
+  '/register',
+  registerUser
+);
 
-// Current User
+// Login User
+router.post(
+  '/login',
+  loginUser
+);
+
+// Send Registration OTP
+router.post(
+  '/send-register-otp',
+  sendRegisterOTP
+);
+
+// Verify OTP
+router.post(
+  '/verify-otp',
+  verifyOTP
+);
+
+// Forgot Password OTP
+router.post(
+  '/forgot-password-otp',
+  sendForgotPasswordOTP
+);
+
+// Reset Password
+router.post(
+  '/reset-password',
+  resetPassword
+);
+
+// ======================================
+// USER ROUTES
+// ======================================
+
+// Get Current User
 router.get(
-  "/me",
+  '/me',
   protect,
   getCurrentUser
 );
 
 // Logout
 router.post(
-  "/logout",
+  '/logout',
   protect,
   logoutUser
 );
 
 // Update Profile
 router.put(
-  "/profile",
+  '/profile',
   protect,
   updateProfile
 );
 
 // Change Password
 router.put(
-  "/change-password",
+  '/change-password',
   protect,
   changePassword
 );
 
+// ======================================
+// ROLE TEST ROUTES
+// ======================================
+
 // Admin Test
 router.get(
-  "/admin-test",
+  '/admin-test',
   protect,
-  authorizeRoles("admin"),
+  authorizeRoles('admin'),
   (req, res) => {
     res.status(200).json({
       success: true,
-      message: "Welcome Admin",
+      message: 'Welcome Admin',
     });
   }
 );
 
 // Faculty/HOD Test
 router.get(
-  "/faculty-hod-test",
+  '/faculty-hod-test',
   protect,
   authorizeRoles(
-    "faculty",
-    "hod"
+    'faculty',
+    'hod'
   ),
   (req, res) => {
     res.status(200).json({
       success: true,
       message:
-        "Welcome Faculty/HOD",
+        'Welcome Faculty/HOD',
+    });
+  }
+);
+
+// Coordinator Test
+router.get(
+  '/coordinator-test',
+  protect,
+  authorizeRoles(
+    'coordinator'
+  ),
+  (req, res) => {
+    res.status(200).json({
+      success: true,
+      message:
+        'Welcome Coordinator',
+    });
+  }
+);
+
+// Student Test
+router.get(
+  '/student-test',
+  protect,
+  authorizeRoles(
+    'student'
+  ),
+  (req, res) => {
+    res.status(200).json({
+      success: true,
+      message:
+        'Welcome Student',
     });
   }
 );

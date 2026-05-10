@@ -1,7 +1,11 @@
 // controllers/adminController.js
 
 const User =
-    require("../models/User");
+    require('../models/User');
+
+const {
+    sendAccountCreatedEmail,
+} = require('../services/emailService');
 
 // ======================================
 // GET ALL USERS
@@ -15,7 +19,7 @@ exports.getAllUsers =
             const users =
                 await User.find()
                     .select(
-                        "-password"
+                        '-password'
                     )
                     .sort({
                         createdAt: -1,
@@ -25,13 +29,13 @@ exports.getAllUsers =
                 success: true,
                 total:
                     users.length,
-                users,
+                data: users,
             });
 
         } catch (error) {
 
             console.error(
-                "GET USERS ERROR:",
+                'GET USERS ERROR:',
                 error
             );
 
@@ -59,7 +63,7 @@ exports.getDashboardStats =
                 await User.countDocuments(
                     {
                         role:
-                            "student",
+                            'student',
                     }
                 );
 
@@ -67,7 +71,7 @@ exports.getDashboardStats =
                 await User.countDocuments(
                     {
                         role:
-                            "faculty",
+                            'faculty',
                     }
                 );
 
@@ -75,7 +79,7 @@ exports.getDashboardStats =
                 await User.countDocuments(
                     {
                         role:
-                            "hod",
+                            'hod',
                     }
                 );
 
@@ -83,7 +87,7 @@ exports.getDashboardStats =
                 await User.countDocuments(
                     {
                         role:
-                            "coordinator",
+                            'coordinator',
                     }
                 );
 
@@ -91,7 +95,7 @@ exports.getDashboardStats =
                 await User.countDocuments(
                     {
                         role:
-                            "admin",
+                            'admin',
                     }
                 );
 
@@ -127,7 +131,7 @@ exports.getDashboardStats =
         } catch (error) {
 
             console.error(
-                "DASHBOARD STATS ERROR:",
+                'DASHBOARD STATS ERROR:',
                 error
             );
 
@@ -140,10 +144,10 @@ exports.getDashboardStats =
     };
 
 // ======================================
-// CREATE STAFF ACCOUNT
+// CREATE USER
 // ======================================
 
-exports.createStaffUser =
+exports.createUser =
     async (req, res) => {
 
         try {
@@ -154,6 +158,10 @@ exports.createStaffUser =
                 password,
                 role,
                 branch,
+                year,
+                semester,
+                section,
+                rollNumber,
                 phoneNumber,
             } = req.body;
 
@@ -174,44 +182,18 @@ exports.createStaffUser =
                     .json({
                         success: false,
                         message:
-                            "All required fields are required",
+                            'All required fields are required',
                     });
             }
 
             // ==============================
-            // ALLOWED ROLES
-            // ==============================
-
-            const allowedRoles =
-                [
-                    "faculty",
-                    "hod",
-                    "coordinator",
-                    "admin",
-                ];
-
-            if (
-                !allowedRoles.includes(
-                    role
-                )
-            ) {
-
-                return res
-                    .status(403)
-                    .json({
-                        success: false,
-                        message:
-                            "Invalid staff role",
-                    });
-            }
-
-            // ==============================
-            // CHECK EXISTING
+            // CHECK EXISTING USER
             // ==============================
 
             const existingUser =
                 await User.findOne({
-                    email,
+                    email:
+                        email.toLowerCase(),
                 });
 
             if (
@@ -223,7 +205,7 @@ exports.createStaffUser =
                     .json({
                         success: false,
                         message:
-                            "User already exists",
+                            'User already exists',
                     });
             }
 
@@ -234,25 +216,81 @@ exports.createStaffUser =
             const user =
                 await User.create({
                     name,
-                    email,
+
+                    email:
+                        email.toLowerCase(),
+
                     password,
+
                     role,
+
                     branch,
+
+                    year,
+
+                    semester,
+
+                    section,
+
+                    rollNumber,
+
                     phoneNumber,
-                    isVerified: true,
+
+                    isVerified:
+                        true,
+
+                    isActive: true,
                 });
+
+            // ==============================
+            // SEND ACCOUNT CREATED EMAIL
+            // ==============================
+
+            try {
+
+                await sendAccountCreatedEmail(
+                    {
+                        name:
+                            user.name,
+
+                        email:
+                            user.email,
+
+                        password,
+
+                        role:
+                            user.role,
+
+                        branch:
+                            user.branch,
+                    }
+                );
+
+            } catch (emailError) {
+
+                console.error(
+                    'EMAIL ERROR:',
+                    emailError
+                );
+            }
+
+            // ==============================
+            // RESPONSE
+            // ==============================
 
             res.status(201).json({
                 success: true,
+
                 message:
                     `${role} account created successfully`,
+
                 data: user,
             });
 
         } catch (error) {
 
             console.error(
-                "CREATE STAFF ERROR:",
+                'CREATE USER ERROR:',
                 error
             );
 
@@ -265,25 +303,17 @@ exports.createStaffUser =
     };
 
 // ======================================
-// ACTIVATE USER
+// TOGGLE USER STATUS
 // ======================================
 
-exports.activateUser =
+exports.toggleUserStatus =
     async (req, res) => {
 
         try {
 
             const user =
-                await User.findByIdAndUpdate(
-                    req.params.id,
-                    {
-                        isActive: true,
-                    },
-                    {
-                        new: true,
-                    }
-                ).select(
-                    "-password"
+                await User.findById(
+                    req.params.id
                 );
 
             if (!user) {
@@ -293,76 +323,30 @@ exports.activateUser =
                     .json({
                         success: false,
                         message:
-                            "User not found",
+                            'User not found',
                     });
             }
 
+            user.isActive =
+                !user.isActive;
+
+            await user.save();
+
             res.status(200).json({
                 success: true,
+
                 message:
-                    "User activated successfully",
+                    user.isActive
+                        ? 'User activated successfully'
+                        : 'User deactivated successfully',
+
                 data: user,
             });
 
         } catch (error) {
 
             console.error(
-                "ACTIVATE USER ERROR:",
-                error
-            );
-
-            res.status(500).json({
-                success: false,
-                message:
-                    error.message,
-            });
-        }
-    };
-
-// ======================================
-// DEACTIVATE USER
-// ======================================
-
-exports.deactivateUser =
-    async (req, res) => {
-
-        try {
-
-            const user =
-                await User.findByIdAndUpdate(
-                    req.params.id,
-                    {
-                        isActive: false,
-                    },
-                    {
-                        new: true,
-                    }
-                ).select(
-                    "-password"
-                );
-
-            if (!user) {
-
-                return res
-                    .status(404)
-                    .json({
-                        success: false,
-                        message:
-                            "User not found",
-                    });
-            }
-
-            res.status(200).json({
-                success: true,
-                message:
-                    "User deactivated successfully",
-                data: user,
-            });
-
-        } catch (error) {
-
-            console.error(
-                "DEACTIVATE USER ERROR:",
+                'TOGGLE USER STATUS ERROR:',
                 error
             );
 
@@ -389,11 +373,11 @@ exports.updateUserRole =
 
             const allowedRoles =
                 [
-                    "student",
-                    "faculty",
-                    "hod",
-                    "coordinator",
-                    "admin",
+                    'student',
+                    'faculty',
+                    'hod',
+                    'coordinator',
+                    'admin',
                 ];
 
             if (
@@ -407,7 +391,7 @@ exports.updateUserRole =
                     .json({
                         success: false,
                         message:
-                            "Invalid role",
+                            'Invalid role',
                     });
             }
 
@@ -421,7 +405,7 @@ exports.updateUserRole =
                         new: true,
                     }
                 ).select(
-                    "-password"
+                    '-password'
                 );
 
             if (!user) {
@@ -431,21 +415,23 @@ exports.updateUserRole =
                     .json({
                         success: false,
                         message:
-                            "User not found",
+                            'User not found',
                     });
             }
 
             res.status(200).json({
                 success: true,
+
                 message:
-                    "User role updated successfully",
+                    'User role updated successfully',
+
                 data: user,
             });
 
         } catch (error) {
 
             console.error(
-                "UPDATE ROLE ERROR:",
+                'UPDATE ROLE ERROR:',
                 error
             );
 
@@ -478,7 +464,7 @@ exports.deleteUser =
                     .json({
                         success: false,
                         message:
-                            "User not found",
+                            'User not found',
                     });
             }
 
@@ -487,13 +473,13 @@ exports.deleteUser =
             res.status(200).json({
                 success: true,
                 message:
-                    "User deleted successfully",
+                    'User deleted successfully',
             });
 
         } catch (error) {
 
             console.error(
-                "DELETE USER ERROR:",
+                'DELETE USER ERROR:',
                 error
             );
 

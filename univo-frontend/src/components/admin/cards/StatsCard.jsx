@@ -2,11 +2,17 @@ import React from 'react';
 import { cn } from '../../../utils/cn';
 import { ArrowUpRight, ArrowDownRight } from 'lucide-react';
 
-const StatsCard = ({ title, value, icon, trend, trendValue, colorClass }) => {
+const StatsCard = ({ title, value, icon, trend, trendValue, colorClass, onClick }) => {
   const isPositive = trend === 'up';
   
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col hover:shadow-md transition-shadow">
+    <div 
+      onClick={onClick}
+      className={cn(
+        "bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col hover:shadow-md transition-shadow",
+        onClick && "cursor-pointer active:scale-[0.98]"
+      )}
+    >
       <div className="flex justify-between items-start mb-4">
         <div className="p-3 rounded-lg bg-slate-50 text-slate-600">
           {icon}
