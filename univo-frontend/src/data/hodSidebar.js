@@ -39,11 +39,11 @@ export const hodSidebarData = [
     path: '/hod/resources',
     icon: FileText,
   },
-  {
-    title: 'Coordinators',
-    path: '/hod/coordinators',
-    icon: Users,
-  },
+  // {
+  //   title: 'Coordinators',
+  //   path: '/hod/coordinators',
+  //   icon: Users,
+  // },
   {
     title: 'Profile',
     path: '/hod/profile',

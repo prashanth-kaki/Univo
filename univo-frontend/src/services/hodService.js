@@ -1,89 +1,332 @@
 import axios from 'axios';
 
-const API_URL = '/api/hod';
+const API_URL =
+  'http://localhost:5000/api/hod';
 
-const apiClient = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+const apiClient =
+  axios.create({
+    baseURL: API_URL,
+    headers: {
+      'Content-Type':
+        'application/json',
+    },
+  });
 
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+// =====================================
+// ATTACH TOKEN
+// =====================================
+
+apiClient.interceptors.request.use(
+  (config) => {
+    const token =
+      localStorage.getItem(
+        'token'
+      );
+
+    if (token) {
+      config.headers.Authorization =
+        `Bearer ${token}`;
+    }
+
+    return config;
   }
-  return config;
-});
+);
 
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+// =====================================
+// DASHBOARD STATS
+// =====================================
 
-export const getDepartmentStats = async () => {
-  await delay(500);
-  return {
-    totalStudents: 1250,
-    totalFaculty: 42,
-    totalSubjects: 28,
-    resourcesUploaded: 345,
-    pendingTasks: 8,
-    activeAnnouncements: 3,
-    attendancePercent: 92,
-    flaggedPosts: 5
+export const getDepartmentStats =
+  async () => {
+    try {
+      const response =
+        await apiClient.get(
+          '/stats'
+        );
+
+      return response.data.data;
+    } catch (
+      error
+    ) {
+      console.error(
+        'Stats Error:',
+        error
+      );
+
+      return null;
+    }
   };
-};
 
-export const getFacultyList = async () => {
-  await delay(600);
-  return [
-    { id: 'F001', name: 'Dr. John Smith', role: 'Associate Professor', subjects: 3, uploads: 45, status: 'Active' },
-    { id: 'F002', name: 'Dr. Sarah Connor', role: 'Assistant Professor', subjects: 2, uploads: 12, status: 'Active' },
-    { id: 'F003', name: 'Prof. Alan Turing', role: 'Professor', subjects: 1, uploads: 80, status: 'On Leave' },
-    { id: 'F004', name: 'Dr. Grace Hopper', role: 'Assistant Professor', subjects: 4, uploads: 23, status: 'Active' },
-  ];
-};
+// =====================================
+// FACULTY LIST
+// =====================================
 
-export const getDepartmentActivity = async () => {
-  await delay(400);
-  return [
-    { id: 1, user: 'Dr. John Smith', action: 'uploaded a new resource for Data Structures', time: '10 mins ago', type: 'resource' },
-    { id: 2, user: 'Prof. Alan Turing', action: 'marked attendance for CS-A', time: '1 hour ago', type: 'attendance' },
-    { id: 3, user: 'System', action: 'Flagged 2 forum posts for review', time: '3 hours ago', type: 'alert' },
-    { id: 4, user: 'Dr. Sarah Connor', action: 'created an assignment: Midterm Prep', time: 'Yesterday', type: 'assignment' },
-  ];
-};
+export const getFacultyList =
+  async () => {
+    try {
+      const response =
+        await apiClient.get(
+          '/faculty'
+        );
 
-export const getSubjectAllocations = async () => {
-  await delay(500);
-  return [
-    { id: 1, code: 'CS301', name: 'Data Structures', faculty: 'Dr. John Smith', sections: ['CS-A', 'CS-B'], credits: 4 },
-    { id: 2, code: 'CS302', name: 'Algorithms', faculty: 'Dr. Sarah Connor', sections: ['CS-A', 'CS-B'], credits: 4 },
-    { id: 3, code: 'CS401', name: 'Database Systems', faculty: 'Dr. Grace Hopper', sections: ['CS-A'], credits: 3 },
-  ];
-};
+      return response.data.data;
+    } catch (
+      error
+    ) {
+      console.error(
+        'Faculty Error:',
+        error
+      );
 
-export const getModerationQueue = async () => {
-  await delay(500);
-  return [
-    { id: 1, author: 'Alice Smith', content: 'Can someone share the exact exam questions?', type: 'Forum Post', flaggedBy: 'Automated System', reason: 'Academic Integrity', time: '2 hours ago' },
-    { id: 2, author: 'Bob Johnson', content: 'Buy cheap assignments here: link', type: 'Comment', flaggedBy: 'Dr. John Smith', reason: 'Spam', time: '5 hours ago' },
-  ];
-};
-
-export const getDepartmentAnalytics = async () => {
-  await delay(600);
-  return {
-    attendanceTrends: [
-      { name: 'Week 1', 'Year 1': 95, 'Year 2': 92, 'Year 3': 88, 'Year 4': 85 },
-      { name: 'Week 2', 'Year 1': 93, 'Year 2': 90, 'Year 3': 85, 'Year 4': 82 },
-      { name: 'Week 3', 'Year 1': 94, 'Year 2': 91, 'Year 3': 87, 'Year 4': 86 },
-      { name: 'Week 4', 'Year 1': 96, 'Year 2': 93, 'Year 3': 89, 'Year 4': 88 },
-    ],
-    facultyUploads: [
-      { name: 'Dr. Smith', uploads: 45 },
-      { name: 'Dr. Connor', uploads: 12 },
-      { name: 'Prof. Turing', uploads: 80 },
-      { name: 'Dr. Hopper', uploads: 23 },
-    ]
+      return [];
+    }
   };
-};
+
+// =====================================
+// CREATE FACULTY
+// =====================================
+
+export const createFaculty =
+  async (
+    facultyData
+  ) => {
+    try {
+      const response =
+        await apiClient.post(
+          '/faculty',
+          facultyData
+        );
+
+      return response.data;
+    } catch (
+      error
+    ) {
+      console.error(
+        'Create Faculty Error:',
+        error
+      );
+
+      throw error;
+    }
+  };
+
+// =====================================
+// ACTIVITY
+// =====================================
+
+export const getDepartmentActivity =
+  async () => {
+    try {
+      const response =
+        await apiClient.get(
+          '/activity'
+        );
+
+      return response.data.data;
+    } catch (
+      error
+    ) {
+      console.error(
+        'Activity Error:',
+        error
+      );
+
+      return [];
+    }
+  };
+
+// =====================================
+// ANALYTICS
+// =====================================
+
+export const getDepartmentAnalytics =
+  async () => {
+    try {
+      const response =
+        await apiClient.get(
+          '/analytics'
+        );
+
+      return response.data.data;
+    } catch (
+      error
+    ) {
+      console.error(
+        'Analytics Error:',
+        error
+      );
+
+      return null;
+    }
+  };
+
+// =====================================
+// ANNOUNCEMENTS
+// =====================================
+
+export const getAnnouncements =
+  async () => {
+    try {
+      const response =
+        await apiClient.get(
+          '/announcements'
+        );
+
+      return response.data.data;
+    } catch (
+      error
+    ) {
+      console.error(
+        'Announcement Error:',
+        error
+      );
+
+      return [];
+    }
+  };
+
+export const createAnnouncement =
+  async (
+    announcementData
+  ) => {
+    try {
+      const response =
+        await apiClient.post(
+          '/announcements',
+          announcementData
+        );
+
+      return response.data;
+    } catch (
+      error
+    ) {
+      console.error(
+        'Create Announcement Error:',
+        error
+      );
+
+      throw error;
+    }
+  };
+
+// =====================================
+// SUBJECTS
+// =====================================
+
+export const getSubjectAllocations =
+  async () => {
+    try {
+      const response =
+        await axios.get(
+          'http://localhost:5000/api/subjects',
+          {
+            headers: {
+              Authorization:
+                `Bearer ${localStorage.getItem('token')}`,
+            },
+          }
+        );
+
+      return response.data.data;
+    } catch (
+      error
+    ) {
+      console.error(
+        'Subject Error:',
+        error
+      );
+
+      return [];
+    }
+  };
+
+export const createSubject =
+  async (
+    subjectData
+  ) => {
+    try {
+      const response =
+        await axios.post(
+          'http://localhost:5000/api/subjects',
+          subjectData,
+          {
+            headers: {
+              Authorization:
+                `Bearer ${localStorage.getItem('token')}`,
+            },
+          }
+        );
+
+      return response.data;
+    } catch (
+      error
+    ) {
+      console.error(
+        'Create Subject Error:',
+        error
+      );
+
+      throw error;
+    }
+  };
+
+export const getFacultyOptions =
+  async () => {
+    try {
+      const response =
+        await apiClient.get(
+          '/faculty'
+        );
+
+      return response.data.data;
+    } catch (
+      error
+    ) {
+      console.error(
+        'Faculty Options Error:',
+        error
+      );
+
+      return [];
+    }
+  };
+
+// =====================================
+// TEMP MODERATION
+// =====================================
+
+export const getModerationQueue =
+  async () => {
+    return [
+      {
+        id: 1,
+        author:
+          'Alice Smith',
+        content:
+          'Can someone share exam questions?',
+        type:
+          'Forum Post',
+        flaggedBy:
+          'Automated System',
+        reason:
+          'Academic Integrity',
+        time:
+          '2 hours ago',
+      },
+      {
+        id: 2,
+        author:
+          'Bob Johnson',
+        content:
+          'Spam content detected',
+        type:
+          'Comment',
+        flaggedBy:
+          'Faculty',
+        reason:
+          'Spam',
+        time:
+          '5 hours ago',
+      },
+    ];
+  };

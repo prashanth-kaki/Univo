@@ -103,6 +103,9 @@ const buzzRoutes =
 const forumRoutes =
   require('./routes/forum');
 
+const hodRoutes =
+  require('./routes/hod');
+
 // ======================================
 // EXPRESS APP
 // ======================================
@@ -446,6 +449,11 @@ app.use(
 app.use(
   '/api/forum',
   forumRoutes
+);
+
+app.use(
+  '/api/hod',
+  hodRoutes
 );
 
 // ======================================
