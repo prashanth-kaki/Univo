@@ -1,99 +1,59 @@
 // routes/tasks.js
-
 const express = require("express");
-
 const router = express.Router();
+const { protect } = require("../middleware/auth");
+const { authorizeRoles } = require("../middleware/roleMiddleware");
+const upload = require("../config/multer");
 
-const {
-  protect,
-} = require("../middleware/auth");
-
-const {
-  authorizeRoles,
-} = require("../middleware/roleMiddleware");
-
-// ======================================
-// CONTROLLERS
-// ======================================
-
+// Controllers
 const {
   createTask,
   getTasks,
   getTaskById,
   updateTask,
   deleteTask,
-} = require(
-  "../controllers/taskController"
-);
-
-// ======================================
-// ALL ROUTES PROTECTED
-// ======================================
+  submitTask,
+  reviewSubmission
+} = require("../controllers/taskController");
 
 router.use(protect);
 
-// ======================================
-// CREATE TASK
-// Faculty / HOD / Coordinator / Admin
-// ======================================
-
+// Faculty / HOD / Coordinator / Admin routes
 router.post(
   "/",
-  authorizeRoles(
-    "faculty",
-    "hod",
-    "coordinator",
-    "admin"
-  ),
+  authorizeRoles("faculty", "hod", "coordinator", "admin"),
+  upload.single("file"), // File attachment for assignment
   createTask
 );
 
-// ======================================
-// GET ALL TASKS
-// ======================================
-
-router.get(
-  "/",
-  getTasks
-);
-
-// ======================================
-// GET SINGLE TASK
-// ======================================
-
-router.get(
-  "/:id",
-  getTaskById
-);
-
-// ======================================
-// UPDATE TASK
-// ======================================
-
 router.put(
   "/:id",
-  authorizeRoles(
-    "faculty",
-    "hod",
-    "coordinator",
-    "admin"
-  ),
+  authorizeRoles("faculty", "hod", "coordinator", "admin"),
   updateTask
 );
 
-// ======================================
-// DELETE TASK
-// ======================================
-
 router.delete(
   "/:id",
-  authorizeRoles(
-    "faculty",
-    "hod",
-    "coordinator",
-    "admin"
-  ),
+  authorizeRoles("faculty", "hod", "coordinator", "admin"),
   deleteTask
 );
+
+router.post(
+  "/:id/review",
+  authorizeRoles("faculty", "hod", "coordinator", "admin"),
+  reviewSubmission
+);
+
+// Student routes
+router.post(
+  "/:id/submit",
+  authorizeRoles("student"),
+  upload.single("proof"), // File proof upload
+  submitTask
+);
+
+// General routes
+router.get("/", getTasks);
+router.get("/:id", getTaskById);
 
 module.exports = router;

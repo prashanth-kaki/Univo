@@ -1,7 +1,12 @@
-import React from 'react';
-import { MessageSquare, ThumbsUp, Reply } from 'lucide-react';
+import React, { useState } from 'react';
+import { MessageSquare, ThumbsUp, Reply, Send } from 'lucide-react';
+import toast from 'react-hot-toast';
 
 const DiscussionPanel = () => {
+  const [activeReplyId, setActiveReplyId] = useState(null);
+  const [replyText, setReplyText] = useState('');
+  const [answeredIds, setAnsweredIds] = useState([]);
+
   const discussions = [
     {
       id: 1,
@@ -58,14 +63,41 @@ const DiscussionPanel = () => {
                 <span className="flex items-center gap-1.5"><MessageSquare className="w-3.5 h-3.5" /> {d.replies} Replies</span>
               </div>
               
-              {d.hasFacultyReply ? (
+              {d.hasFacultyReply || answeredIds.includes(d.id) ? (
                 <span className="bg-emerald-100 text-emerald-700 px-2.5 py-1 rounded text-xs font-semibold">Answered</span>
               ) : (
-                <button className="flex items-center gap-1.5 text-xs bg-indigo-600 text-white px-3 py-1.5 rounded font-medium hover:bg-indigo-700 transition-colors">
+                <button onClick={() => setActiveReplyId(activeReplyId === d.id ? null : d.id)} className="flex items-center gap-1.5 text-xs bg-indigo-600 text-white px-3 py-1.5 rounded font-medium hover:bg-indigo-700 transition-colors">
                   <Reply className="w-3.5 h-3.5" /> Reply
                 </button>
               )}
             </div>
+            
+            {activeReplyId === d.id && (
+              <div className="mt-3 pt-3 border-t border-slate-200">
+                <textarea 
+                  className="w-full text-sm border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-indigo-500 outline-none resize-none" 
+                  rows="2" 
+                  placeholder="Type your answer..."
+                  value={replyText}
+                  onChange={(e) => setReplyText(e.target.value)}
+                ></textarea>
+                <div className="flex justify-end gap-2 mt-2">
+                  <button onClick={() => setActiveReplyId(null)} className="text-xs px-3 py-1.5 text-slate-500 hover:text-slate-700 font-medium">Cancel</button>
+                  <button 
+                    onClick={() => {
+                      if (!replyText.trim()) return toast.error('Reply cannot be empty');
+                      toast.success('Reply posted successfully');
+                      setAnsweredIds(prev => [...prev, d.id]);
+                      setActiveReplyId(null);
+                      setReplyText('');
+                    }} 
+                    className="flex items-center gap-1 text-xs bg-indigo-600 text-white px-3 py-1.5 rounded font-medium hover:bg-indigo-700 transition-colors"
+                  >
+                    <Send className="w-3 h-3" /> Post Answer
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>

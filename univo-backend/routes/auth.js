@@ -21,7 +21,12 @@ const {
   authorizeRoles,
 } = require('../middleware/roleMiddleware');
 
+// const {
+//   updateProfile,
+// } = require("../controllers/authController");
+
 const router = express.Router();
+
 
 // ======================================
 // AUTH ROUTES
@@ -83,7 +88,7 @@ router.post(
 
 // Update Profile
 router.put(
-  '/profile',
+  "/updateprofile",
   protect,
   updateProfile
 );
@@ -154,11 +159,18 @@ router.get(
   ),
   (req, res) => {
     res.status(200).json({
-      success: true,
+      success: trSue,
       message:
         'Welcome Student',
     });
   }
 );
+
+// router.put(
+//   "/updatedetails",
+//   protect,
+//   updateDetails
+// );
+
 
 module.exports = router;

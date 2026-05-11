@@ -8,23 +8,31 @@ const StudentAssignments = () => {
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('All');
 
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const data = await getStudentAssignments();
+      setAssignments(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const data = await getStudentAssignments();
-        setAssignments(data);
-      } catch (error) {
-        console.error(error);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchData();
   }, []);
 
   const filteredAssignments = filter === 'All' 
     ? assignments 
-    : assignments.filter(a => a.status === filter);
+    : assignments.filter(a => {
+        const status = a.mySubmission?.status || 'not_submitted';
+        if (filter === 'Pending') return status === 'not_submitted';
+        if (filter === 'Submitted') return status === 'pending';
+        if (filter === 'Reviewed') return status === 'accepted' || status === 'rejected' || status === 'resubmit';
+        return true;
+      });
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -35,7 +43,7 @@ const StudentAssignments = () => {
         </div>
         
         <div className="flex items-center gap-2 overflow-x-auto pb-2 sm:pb-0 hide-scrollbar">
-          {['All', 'Pending', 'Submitted', 'Reviewed', 'Late'].map(f => (
+          {['All', 'Pending', 'Submitted', 'Reviewed'].map(f => (
             <button 
               key={f}
               onClick={() => setFilter(f)}
@@ -64,7 +72,7 @@ const StudentAssignments = () => {
             [1,2,3].map(i => <div key={i} className="h-24 bg-slate-100 rounded-xl animate-pulse"></div>)
           ) : (
             filteredAssignments.length > 0 ? (
-              filteredAssignments.map(a => <AssignmentCard key={a.id} assignment={a} />)
+              filteredAssignments.map(a => <AssignmentCard key={a._id} assignment={a} onUpdate={fetchData} />)
             ) : (
               <div className="flex flex-col items-center justify-center h-full text-slate-400 py-12">
                 <p className="text-lg font-medium">No assignments found for this filter.</p>

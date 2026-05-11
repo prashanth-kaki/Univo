@@ -1,9 +1,17 @@
 import React, { useState } from 'react';
 import { UploadCloud, File, X, CheckCircle } from 'lucide-react';
+import toast from 'react-hot-toast';
 
-const ResourceUpload = () => {
+const ResourceUpload = ({ onUploadSuccess }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [files, setFiles] = useState([]);
+  const [formDataState, setFormDataState] = useState({
+    year: '1',
+    department: 'Computer Science',
+    subjectName: 'Data Structures',
+    type: 'notes',
+    description: '',
+  });
 
   const handleDragOver = (e) => {
     e.preventDefault();
@@ -28,37 +36,70 @@ const ResourceUpload = () => {
     }
   };
 
-  const handleFiles = (newFiles) => {
-    const mappedFiles = newFiles.map(file => ({
-      name: file.name,
-      size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
-      progress: 0,
-      status: 'uploading'
-    }));
-    
-    setFiles(prev => [...prev, ...mappedFiles]);
-    
-    // Simulate upload
-    mappedFiles.forEach((file, index) => {
-      let progress = 0;
-      const interval = setInterval(() => {
-        progress += 10;
-        setFiles(prev => {
-          const updated = [...prev];
-          const fileIndex = updated.findIndex(f => f.name === file.name);
-          if (fileIndex !== -1) {
-            if (progress >= 100) {
-              updated[fileIndex].progress = 100;
-              updated[fileIndex].status = 'completed';
-              clearInterval(interval);
-            } else {
-              updated[fileIndex].progress = progress;
-            }
-          }
-          return updated;
-        });
-      }, 300);
+  const handleChange = (e) => {
+    setFormDataState({
+      ...formDataState,
+      [e.target.name]: e.target.value
     });
+  };
+
+  const handleFiles = async (newFiles) => {
+    for (const file of newFiles) {
+      const tempFile = {
+        name: file.name,
+        size: (file.size / (1024 * 1024)).toFixed(2) + ' MB',
+        progress: 0,
+        status: 'uploading'
+      };
+
+      setFiles(prev => [...prev, tempFile]);
+
+      try {
+        const formData = new FormData();
+        formData.append("title", file.name.split('.').slice(0, -1).join('.'));
+        formData.append("subject", "60d5ecb8b392d7001f3e3948"); // Dummy valid ObjectId
+        formData.append("subjectName", formDataState.subjectName);
+        formData.append("year", formDataState.year);
+        formData.append("department", formDataState.department);
+        formData.append("type", formDataState.type);
+        formData.append("description", formDataState.description || "Uploaded file");
+        formData.append("semester", formDataState.year * 2 - 1);
+        formData.append("file", file); // File must be last for multer to read body fields first
+
+        const token = localStorage.getItem("token");
+
+        const response = await fetch("http://localhost:5000/api/resources", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+          throw new Error(data.message || 'Upload failed');
+        }
+
+        setFiles(prev =>
+          prev.map(f =>
+            f.name === file.name ? { ...f, progress: 100, status: "completed" } : f
+          )
+        );
+        toast.success("File uploaded successfully");
+        if (onUploadSuccess) onUploadSuccess();
+
+      } catch (error) {
+        console.error("Upload error:", error);
+        toast.error("Failed to upload file");
+        setFiles(prev =>
+          prev.map(f =>
+            f.name === file.name ? { ...f, status: "failed" } : f
+          )
+        );
+      }
+    }
   };
 
   const removeFile = (name) => {
@@ -69,6 +110,47 @@ const ResourceUpload = () => {
     <div className="bg-white rounded-xl border border-slate-200 p-6 shadow-sm">
       <h3 className="text-lg font-bold text-slate-800 mb-4">Upload Study Material</h3>
       
+      <div className="space-y-4 mb-6">
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Year</label>
+            <select name="year" value={formDataState.year} onChange={handleChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500">
+              <option value="1">Year 1</option>
+              <option value="2">Year 2</option>
+              <option value="3">Year 3</option>
+              <option value="4">Year 4</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Department</label>
+            <select name="department" value={formDataState.department} onChange={handleChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500">
+              <option value="Computer Science">Computer Science</option>
+              <option value="Information Technology">Information Technology</option>
+              <option value="Electronics">Electronics</option>
+              <option value="Mechanical">Mechanical</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Subject Name</label>
+          <input type="text" name="subjectName" value={formDataState.subjectName} onChange={handleChange} placeholder="e.g. Data Structures" className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500" />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">Resource Type</label>
+          <select name="type" value={formDataState.type} onChange={handleChange} className="w-full border border-slate-200 rounded-lg p-2 text-sm outline-none focus:border-indigo-500">
+            <option value="notes">Notes</option>
+            <option value="assignment">Assignment</option>
+            <option value="record">Record</option>
+            <option value="mid_questions">Mid Questions</option>
+            <option value="internal_questions">Internal Questions</option>
+            <option value="external_questions">External Questions</option>
+            <option value="other">Other</option>
+          </select>
+        </div>
+      </div>
+
       <div 
         className={`border-2 border-dashed rounded-xl p-8 text-center transition-colors cursor-pointer ${
           isDragging ? 'border-indigo-500 bg-indigo-50' : 'border-slate-300 hover:bg-slate-50 hover:border-indigo-400'
@@ -128,3 +210,4 @@ const ResourceUpload = () => {
 };
 
 export default ResourceUpload;
+

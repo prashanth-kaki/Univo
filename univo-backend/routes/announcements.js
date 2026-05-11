@@ -1,12 +1,17 @@
 const express = require("express");
 
 const router = express.Router();
-
+const upload =
+  require("../config/multer");
 const {
   protect,
   authorize,
 } = require("../middleware/auth");
-
+const {
+  authorizeRoles,
+} = require(
+  "../middleware/roleMiddleware"
+);
 const {
   getAnnouncements,
   createAnnouncement,
@@ -15,6 +20,7 @@ const {
   togglePinAnnouncement,
   sendAnnouncementNotification,
 } = require("../controllers/announcementController");
+
 
 // ======================================
 // GET ALL ANNOUNCEMENTS
@@ -32,13 +38,18 @@ router.get(
 
 router.post(
   "/",
+
   protect,
-  authorize(
-    "hod",
+
+  authorizeRoles(
     "faculty",
+    "hod",
     "coordinator",
     "admin"
   ),
+
+  upload.single("attachment"),
+
   createAnnouncement
 );
 
@@ -48,13 +59,18 @@ router.post(
 
 router.put(
   "/:id",
+
   protect,
+
   authorize(
     "hod",
     "faculty",
     "coordinator",
     "admin"
   ),
+
+  upload.single("attachment"),
+
   updateAnnouncement
 );
 

@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import SubjectCard from '../../components/faculty/SubjectCard';
 import { getSubjects } from '../../services/facultyService';
 import { Plus } from 'lucide-react';
+import RequestSubjectModal from '../../components/faculty/RequestSubjectModal';
 
 const FacultySubjects = () => {
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchSubjects = async () => {
@@ -28,7 +30,7 @@ const FacultySubjects = () => {
           <h1 className="text-2xl font-bold text-slate-800">My Subjects</h1>
           <p className="text-slate-500 mt-1">Manage your assigned subjects and sections.</p>
         </div>
-        <button className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors w-full sm:w-auto">
+        <button onClick={() => setIsModalOpen(true)} className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium flex items-center justify-center gap-2 hover:bg-indigo-700 transition-colors w-full sm:w-auto">
           <Plus className="w-5 h-5" /> Request Subject
         </button>
       </div>
@@ -50,13 +52,18 @@ const FacultySubjects = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {subjects.map(subject => (
             <SubjectCard 
-              key={`${subject.id}-${subject.section}`} 
+              key={`${subject._id}-${subject.section}`} 
               subject={subject} 
               onClick={(subj) => console.log('View subject:', subj)}
             />
           ))}
         </div>
       )}
+
+      <RequestSubjectModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+      />
     </div>
   );
 };

@@ -144,6 +144,10 @@ const announcementSchema =
           fileSize: {
             type: Number,
           },
+
+          key: {
+            type: String,
+          },
         },
       ],
 

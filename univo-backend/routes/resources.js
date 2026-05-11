@@ -4,6 +4,8 @@ const express = require("express");
 
 const router = express.Router();
 
+const upload = require("../config/multer");
+
 const {
   protect,
 } = require("../middleware/auth");
@@ -17,11 +19,21 @@ const {
 // ======================================
 
 const {
+
   createResource,
+
   getResources,
+
   getResourceById,
+
   updateResource,
+
   deleteResource,
+
+  getFacultyResources,
+
+  getStudentResources,
+
 } = require(
   "../controllers/resourceController"
 );
@@ -34,17 +46,20 @@ router.use(protect);
 
 // ======================================
 // CREATE RESOURCE
-// Faculty / HOD / Coordinator / Admin
 // ======================================
 
 router.post(
   "/",
+
   authorizeRoles(
     "faculty",
     "hod",
     "coordinator",
     "admin"
   ),
+
+  upload.single("file"),
+
   createResource
 );
 
@@ -55,6 +70,37 @@ router.post(
 router.get(
   "/",
   getResources
+);
+
+// ======================================
+// GET FACULTY RESOURCES
+// ======================================
+
+router.get(
+  "/faculty/my-uploads",
+
+  authorizeRoles(
+    "faculty",
+    "hod",
+    "coordinator",
+    "admin"
+  ),
+
+  getFacultyResources
+);
+
+// ======================================
+// GET STUDENT RESOURCES
+// ======================================
+
+router.get(
+  "/student",
+
+  authorizeRoles(
+    "student"
+  ),
+
+  getStudentResources
 );
 
 // ======================================
@@ -72,12 +118,14 @@ router.get(
 
 router.put(
   "/:id",
+
   authorizeRoles(
     "faculty",
     "hod",
     "coordinator",
     "admin"
   ),
+
   updateResource
 );
 
@@ -87,12 +135,14 @@ router.put(
 
 router.delete(
   "/:id",
+
   authorizeRoles(
     "faculty",
     "hod",
     "coordinator",
     "admin"
   ),
+
   deleteResource
 );
 

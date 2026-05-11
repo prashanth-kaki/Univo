@@ -100,7 +100,7 @@ export const getBookmarks = async () => {
 // Mutations
 export const submitAssignment = async (taskId, formData) => {
   try {
-    const res = await api.put(`/tasks/${taskId}`, formData, {
+    const res = await api.post(`/tasks/${taskId}/submit`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' }
     });
     return { success: true, data: res.data };

@@ -11,6 +11,9 @@ exports.createAnnouncement = async (
     req,
     res
 ) => {
+    console.log(req.body);
+    console.log(req.file);
+    console.log(req.user);
     try {
 
         const {
@@ -57,26 +60,28 @@ exports.createAnnouncement = async (
         }
 
         // ATTACHMENTS
-
         let attachments = [];
 
-        if (
-            req.files &&
-            req.files.length > 0
-        ) {
-            attachments = req.files.map(
-                (file) => ({
+        if (req.file) {
+
+            attachments = [
+                {
                     fileName:
-                        file.originalname,
+                        req.file.originalname,
+
                     fileUrl:
-                        file.path ||
-                        file.location,
+                        req.file.location,
+
                     fileType:
-                        file.mimetype,
+                        req.file.mimetype,
+
                     fileSize:
-                        file.size,
-                })
-            );
+                        req.file.size,
+
+                    key:
+                        req.file.key,
+                },
+            ];
         }
 
         // CREATE
@@ -120,17 +125,16 @@ exports.createAnnouncement = async (
 
     } catch (error) {
 
-        console.error(
-            "CREATE ANNOUNCEMENT ERROR:",
-            error
-        );
+        console.log(error);
 
-        res.status(500).json({
+        res.status(400).json({
+
             success: false,
+
             message:
-                "Server error while creating announcement",
-            error:
                 error.message,
+
+            error,
         });
     }
 };
@@ -345,81 +349,111 @@ exports.getAnnouncementById =
 // ======================================
 
 exports.updateAnnouncement =
-    async (req, res) => {
+  async (req, res) => {
 
-        try {
+    try {
 
-            const announcement =
-                await Announcement.findById(
-                    req.params.id
-                );
+      console.log(req.body);
+      console.log(req.file);
 
-            if (
-                !announcement
-            ) {
-                return res
-                    .status(404)
-                    .json({
-                        success: false,
-                        message:
-                            "Announcement not found",
-                    });
-            }
+      const announcement =
+        await Announcement.findById(
+          req.params.id
+        );
 
-            // OWNER CHECK
+      if (!announcement) {
 
-            if (
-                announcement.sender.toString() !==
-                req.user._id.toString() &&
-                req.user.role !==
-                "admin"
-            ) {
-                return res
-                    .status(403)
-                    .json({
-                        success: false,
-                        message:
-                            "You are not authorized to update this announcement",
-                    });
-            }
+        return res.status(404).json({
 
-            const updatedAnnouncement =
-                await Announcement.findByIdAndUpdate(
-                    req.params.id,
-                    req.body,
-                    {
-                        new: true,
-                        runValidators: true,
-                    }
-                ).populate(
-                    "sender",
-                    "name role profileImage"
-                );
+          success: false,
 
-            res.status(200).json({
-                success: true,
-                message:
-                    "Announcement updated successfully",
-                data:
-                    updatedAnnouncement,
-            });
+          message:
+            "Announcement not found",
+        });
+      }
 
-        } catch (error) {
+      // OWNER CHECK
 
-            console.error(
-                "UPDATE ANNOUNCEMENT ERROR:",
-                error
-            );
+      if (
 
-            res.status(500).json({
-                success: false,
-                message:
-                    "Server error while updating announcement",
-                error:
-                    error.message,
-            });
-        }
-    };
+        announcement.sender.toString() !==
+        req.user._id.toString()
+
+      ) {
+
+        return res.status(403).json({
+
+          success: false,
+
+          message:
+            "Unauthorized",
+        });
+      }
+
+      // UPDATE TEXT
+
+      announcement.title =
+        req.body.title;
+
+      announcement.message =
+        req.body.message;
+
+      // REPLACE FILE
+
+      if (req.file) {
+
+        announcement.attachments =
+          [
+            {
+              fileName:
+                req.file.originalname,
+
+              fileUrl:
+                req.file.location,
+
+              fileType:
+                req.file.mimetype,
+
+              fileSize:
+                req.file.size,
+
+              key:
+                req.file.key,
+            },
+          ];
+      }
+
+      await announcement.save();
+
+      const updatedAnnouncement =
+        await Announcement.findById(
+          announcement._id
+        ).populate(
+          "sender",
+          "name role profileImage"
+        );
+
+      res.status(200).json({
+
+        success: true,
+
+        data:
+          updatedAnnouncement,
+      });
+
+    } catch (error) {
+
+      console.log(error);
+
+      res.status(500).json({
+
+        success: false,
+
+        message:
+          error.message,
+      });
+    }
+  };
 
 // ======================================
 // DELETE

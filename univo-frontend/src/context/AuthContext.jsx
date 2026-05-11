@@ -399,6 +399,7 @@ export const AuthProvider = ({
     // STATE
 
     user,
+    setUser,
     token,
     loading,
 

@@ -5,8 +5,8 @@ const StudentTable = ({ students, loading }) => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredStudents = students?.filter(s => 
-    s.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    s.rollNo.includes(searchTerm)
+    s.name?.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    s.rollNumber?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   if (loading) {
@@ -63,8 +63,8 @@ const StudentTable = ({ students, loading }) => {
           </thead>
           <tbody className="divide-y divide-slate-100 text-sm">
             {filteredStudents?.map((student) => (
-              <tr key={student.id} className="hover:bg-slate-50 transition-colors">
-                <td className="p-4 font-medium text-slate-700">{student.rollNo}</td>
+              <tr key={student._id} className="hover:bg-slate-50 transition-colors">
+                <td className="p-4 font-medium text-slate-700">{student.rollNumber || 'N/A'}</td>
                 <td className="p-4">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs">
@@ -73,23 +73,23 @@ const StudentTable = ({ students, loading }) => {
                     <span className="font-medium text-slate-800">{student.name}</span>
                   </div>
                 </td>
-                <td className="p-4 text-slate-600">{student.section}</td>
+                <td className="p-4 text-slate-600">{student.section || 'N/A'}</td>
                 <td className="p-4">
                   <div className="flex items-center gap-2">
                     <div className="w-16 h-2 bg-slate-200 rounded-full overflow-hidden">
                       <div 
-                        className={`h-full rounded-full ${student.attendance >= 75 ? 'bg-emerald-500' : 'bg-red-500'}`}
-                        style={{ width: `${student.attendance}%` }}
+                        className={`h-full rounded-full ${(student.attendance || 0) >= 75 ? 'bg-emerald-500' : 'bg-red-500'}`}
+                        style={{ width: `${student.attendance || 0}%` }}
                       ></div>
                     </div>
-                    <span className={`font-medium ${student.attendance >= 75 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {student.attendance}%
+                    <span className={`font-medium ${(student.attendance || 0) >= 75 ? 'text-emerald-600' : 'text-red-600'}`}>
+                      {student.attendance || 0}%
                     </span>
                   </div>
                 </td>
                 <td className="p-4">
                   <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    Grade {student.performance}
+                    {student.performance ? `Grade ${student.performance}` : 'N/A'}
                   </span>
                 </td>
                 <td className="p-4 text-right">

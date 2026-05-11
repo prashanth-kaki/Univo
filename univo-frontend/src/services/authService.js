@@ -101,3 +101,13 @@ export const getStoredUser = () => {
 export const isAuthenticated = () => {
   return !!localStorage.getItem('token');
 };
+export const updateProfile = async (userData) => {
+  const response = await api.put('/auth/updateprofile', userData);
+  const data = response.data;
+
+  if (data.data) {
+    localStorage.setItem('user', JSON.stringify(data.data));
+  }
+
+  return data;
+};

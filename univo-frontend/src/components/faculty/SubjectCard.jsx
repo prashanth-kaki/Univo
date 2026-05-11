@@ -29,7 +29,7 @@ const SubjectCard = ({ subject, onClick }) => {
             </div>
             <div>
               <p className="text-xs text-slate-500">Students</p>
-              <p className="text-sm font-bold text-slate-700">{subject.totalStudents}</p>
+              <p className="text-sm font-bold text-slate-700">{subject.totalStudents || 'N/A'}</p>
             </div>
           </div>
           

@@ -1,96 +1,314 @@
-import axios from 'axios';
 
-// Base API configuration (can be updated to use env vars)
-const API_URL = '/api/faculty';
+import axios from "axios";
 
-// Create an axios instance with default config
-const apiClient = axios.create({
-  baseURL: API_URL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+// ======================================
+// BASE API CONFIG
+// ======================================
 
-// Add interceptor to include auth token
-apiClient.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+const API_URL =
+  "http://localhost:5000/api";
+
+const apiClient =
+  axios.create({
+
+    baseURL: API_URL,
+
+    headers: {
+
+      "Content-Type":
+        "application/json",
+    },
+  });
+
+// ======================================
+// AUTH TOKEN INTERCEPTOR
+// ======================================
+
+apiClient.interceptors.request.use(
+  (config) => {
+
+    const token =
+      localStorage.getItem(
+        "token"
+      );
+
+    if (token) {
+
+      config.headers.Authorization =
+        `Bearer ${token}`;
+    }
+
+    return config;
   }
-  return config;
-});
+);
 
-// Mock delay to simulate network requests
-const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+// ======================================
+// MOCK DELAY
+// ======================================
 
-// Dashboard Stats
+const delay = (ms) =>
+
+  new Promise(resolve =>
+    setTimeout(resolve, ms)
+  );
+
+// ======================================
+// DASHBOARD STATS
+// ======================================
+
 export const getDashboardStats = async () => {
-  await delay(500);
-  // Return mock data for now
-  return {
-    assignedSubjects: 4,
-    totalStudents: 156,
-    pendingAssignments: 12,
-    resourcesUploaded: 45,
-    attendancePercent: 88,
-    unreadDiscussions: 8
-  };
+  try {
+    const response = await apiClient.get('/faculty/dashboard-stats');
+    return response.data?.data || null;
+  } catch (error) {
+    console.error('Failed to fetch dashboard stats', error);
+    return null;
+  }
 };
+
+// ======================================
+// UPCOMING CLASSES
+// ======================================
 
 export const getUpcomingClasses = async () => {
-  await delay(500);
-  return [
-    { id: 1, subject: 'Data Structures', time: '10:00 AM', room: 'Lab 1', section: 'CS-A' },
-    { id: 2, subject: 'Algorithms', time: '11:30 AM', room: 'Room 302', section: 'CS-B' },
-  ];
+  try {
+    const response = await apiClient.get('/faculty/upcoming-classes');
+    return response.data?.data || [];
+  } catch (error) {
+    console.error('Failed to fetch upcoming classes', error);
+    return [];
+  }
 };
+
+// ======================================
+// SUBJECTS
+// ======================================
 
 export const getSubjects = async () => {
-  await delay(500);
-  return [
-    { id: 'CS301', name: 'Data Structures', code: 'CS301', semester: 3, section: 'CS-A', totalStudents: 60 },
-    { id: 'CS302', name: 'Algorithms', code: 'CS302', semester: 3, section: 'CS-B', totalStudents: 55 },
-    { id: 'CS401', name: 'Database Systems', code: 'CS401', semester: 4, section: 'CS-A', totalStudents: 62 },
-  ];
+  try {
+    const response = await apiClient.get('/faculty/subjects');
+    return response.data?.data || [];
+  } catch (error) {
+    console.error('Failed to fetch subjects', error);
+    return [];
+  }
 };
 
-export const getStudents = async (subjectId = null) => {
-  await delay(600);
-  const allStudents = [
-    { id: 'STU001', name: 'Alice Smith', rollNo: '101', section: 'CS-A', attendance: 92, performance: 'A' },
-    { id: 'STU002', name: 'Bob Johnson', rollNo: '102', section: 'CS-A', attendance: 85, performance: 'B+' },
-    { id: 'STU003', name: 'Charlie Brown', rollNo: '103', section: 'CS-B', attendance: 78, performance: 'B' },
-    { id: 'STU004', name: 'Diana Prince', rollNo: '104', section: 'CS-B', attendance: 95, performance: 'A+' },
-    { id: 'STU005', name: 'Eve Adams', rollNo: '105', section: 'CS-A', attendance: 60, performance: 'C' },
-  ];
-  return allStudents;
+// ======================================
+// STUDENTS
+// ======================================
+
+export const getStudents = async () => {
+  try {
+    const response = await apiClient.get('/faculty/students');
+    return response.data?.data || [];
+  } catch (error) {
+    console.error('Failed to fetch students', error);
+    return [];
+  }
 };
+
+// ======================================
+// ASSIGNMENTS
+// ======================================
 
 export const getAssignments = async () => {
-  await delay(500);
-  return [
-    { id: 1, title: 'Binary Trees Implementation', subject: 'Data Structures', dueDate: '2023-11-15', submissions: 45, total: 60, status: 'Active' },
-    { id: 2, title: 'Graph Traversal', subject: 'Algorithms', dueDate: '2023-11-20', submissions: 10, total: 55, status: 'Active' },
-    { id: 3, title: 'SQL Joins', subject: 'Database Systems', dueDate: '2023-10-30', submissions: 62, total: 62, status: 'Closed' },
-  ];
+  try {
+    const response = await apiClient.get("/tasks");
+    return response.data?.data || response.data || [];
+  } catch (error) {
+    console.error("Failed to fetch assignments", error);
+    return [];
+  }
 };
 
-export const getResources = async () => {
-  await delay(400);
-  return [
-    { id: 1, title: 'Week 1 Notes', type: 'PDF', subject: 'Data Structures', uploadDate: '2023-09-01', size: '2.4 MB' },
-    { id: 2, title: 'Sorting Algorithms Presentation', type: 'PPT', subject: 'Algorithms', uploadDate: '2023-09-10', size: '5.1 MB' },
-    { id: 3, title: 'Normalization Guide', type: 'PDF', subject: 'Database Systems', uploadDate: '2023-09-15', size: '1.8 MB' },
-  ];
+export const createAssignment = async (formData) => {
+  // Use multipart/form-data for file upload
+  const response = await apiClient.post("/tasks", formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+  return response.data;
 };
 
-export const getAttendanceAnalytics = async () => {
-  await delay(500);
-  return [
-    { name: 'Week 1', 'CS-A': 95, 'CS-B': 92 },
-    { name: 'Week 2', 'CS-A': 92, 'CS-B': 88 },
-    { name: 'Week 3', 'CS-A': 88, 'CS-B': 85 },
-    { name: 'Week 4', 'CS-A': 90, 'CS-B': 89 },
-    { name: 'Week 5', 'CS-A': 85, 'CS-B': 82 },
-  ];
+export const reviewSubmission = async (taskId, studentId, status, reviewNote) => {
+  const response = await apiClient.post(`/tasks/${taskId}/review`, {
+    studentId,
+    status,
+    reviewNote
+  });
+  return response.data;
+};
+
+// ======================================
+// ATTENDANCE ANALYTICS
+// ======================================
+
+export const
+  getAttendanceAnalytics =
+    async () => {
+
+      await delay(500);
+
+      return [
+
+        {
+          name: "Week 1",
+
+          "CS-A": 95,
+
+          "CS-B": 92,
+        },
+
+        {
+          name: "Week 2",
+
+          "CS-A": 92,
+
+          "CS-B": 88,
+        },
+
+        {
+          name: "Week 3",
+
+          "CS-A": 88,
+
+          "CS-B": 85,
+        },
+      ];
+    };
+
+// ======================================
+// GET FACULTY RESOURCES
+// ======================================
+
+export const
+  getFacultyResources =
+    async () => {
+
+      const response =
+        await apiClient.get(
+
+          "/resources/faculty/my-uploads"
+        );
+
+      return response.data;
+    };
+
+// ======================================
+// GET ALL RESOURCES
+// ======================================
+
+export const
+  getAllResources =
+    async () => {
+
+      const response =
+        await apiClient.get(
+          "/resources"
+        );
+
+      return response.data;
+    };
+
+// ======================================
+// DELETE RESOURCE
+// ======================================
+
+export const
+  deleteResource =
+    async (id) => {
+
+      const response =
+        await apiClient.delete(
+
+          `/resources/${id}`
+        );
+
+      return response.data;
+    };
+
+export const updateAssignment = async (taskId, formData) => {
+  const response = await apiClient.put(`/tasks/${taskId}`, formData, {
+    headers: {
+      "Content-Type": "multipart/form-data",
+    },
+  });
+  return response.data;
+};
+
+export const deleteAssignment = async (taskId) => {
+  const response = await apiClient.delete(`/tasks/${taskId}`);
+  return response.data;
+};
+
+export const createAnnouncement =
+  async (formData) => {
+
+    const response =
+      await apiClient.post(
+
+        "/announcements",
+
+        formData,
+
+        {
+          headers: {
+
+            "Content-Type":
+              "multipart/form-data",
+          },
+        }
+      );
+
+    return response.data;
+  };
+
+export const getAnnouncements =
+  async () => {
+
+    const response =
+      await apiClient.get(
+        "/announcements"
+      );
+
+    return response.data.data;
+  };
+
+export const updateAnnouncement =
+  async (id, formData) => {
+
+    const response =
+      await apiClient.put(
+
+        `/announcements/${id}`,
+
+        formData,
+
+        {
+          headers: {
+
+            "Content-Type":
+              "multipart/form-data",
+          },
+        }
+      );
+
+    return response.data;
+  };
+
+export const getDiscussions = async (subjectId) => {
+  const response = await apiClient.get(`/discussions?subjectId=${subjectId}`);
+  return response.data;
+};
+
+export const createDiscussion = async (data) => {
+  const response = await apiClient.post('/discussions', data);
+  return response.data;
+};
+
+export const deleteAnnouncement = async (id) => {
+  const response = await apiClient.delete(`/announcements/${id}`);
+  return response.data;
 };
